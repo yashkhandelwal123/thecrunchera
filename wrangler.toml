@@ -2,5 +2,6 @@ name = "thecrunchera"
 main = "worker.js"
 compatibility_date = "2025-11-04"
 
-[site]
-bucket = "./dist"
+[assets]
+directory = "./dist"
+binding = "ASSETS"
