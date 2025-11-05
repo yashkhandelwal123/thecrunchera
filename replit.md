@@ -1,8 +1,8 @@
-# TroovyBites - D2C Healthy Kids Food eCommerce Platform
+# The Crunch eraBites - D2C Healthy Kids Food eCommerce Platform
 
 ## Overview
 
-TroovyBites is a direct-to-consumer eCommerce platform specializing in healthy, wholesome food products for children and families. The platform features a vibrant, playful-yet-premium design inspired by Troovy, targeting health-conscious parents while maintaining kid-friendly appeal. The application offers product browsing, shopping cart functionality, newsletter subscriptions, and contact forms.
+The Crunch eraBites is a direct-to-consumer eCommerce platform specializing in healthy, wholesome food products for children and families. The platform features a vibrant, playful-yet-premium design inspired by The Crunch era, targeting health-conscious parents while maintaining kid-friendly appeal. The application offers product browsing, shopping cart functionality, newsletter subscriptions, and contact forms.
 
 ## User Preferences
 
@@ -35,7 +35,7 @@ Preferred communication style: Simple, everyday language.
 **Styling Approach**:
 - Tailwind CSS with custom theme extending base configuration
 - CSS custom properties for theming (HSL color format)
-- Design inspired by Troovy with vibrant warmth, rounded corners, and premium clarity
+- Design inspired by The Crunch era with vibrant warmth, rounded corners, and premium clarity
 - Google Fonts: Quicksand (headings), Inter (body), Fredoka (accents)
 
 ### Backend Architecture

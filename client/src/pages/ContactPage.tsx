@@ -77,7 +77,7 @@ export default function ContactPage() {
                 <Mail className="w-6 h-6 text-primary" />
               </div>
               <h3 className="font-heading font-semibold text-lg mb-2">Email Us</h3>
-              <p className="text-muted-foreground mb-2">support@troovybites.com</p>
+              <p className="text-muted-foreground mb-2">support@The Crunch erabites.com</p>
               <p className="text-sm text-muted-foreground">We reply within 24 hours</p>
             </Card>
           </motion.div>

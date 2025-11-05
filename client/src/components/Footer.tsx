@@ -154,7 +154,7 @@ export default function Footer() {
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 TroovyBites. All rights reserved.
+            © 2025 The Crunch Era. All rights reserved.
           </p>
           <div className="flex gap-4 text-sm text-muted-foreground">
             <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">

@@ -13,7 +13,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-const CART_STORAGE_KEY = "troovy_cart";
+const CART_STORAGE_KEY = "The Crunch era_cart";
 
 export function CartProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();

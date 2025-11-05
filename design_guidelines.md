@@ -1,7 +1,7 @@
-# Design Guidelines: Troovy-Inspired D2C eCommerce Website
+# Design Guidelines: The Crunch era-Inspired D2C eCommerce Website
 
 ## Design Approach
-**Reference-Based**: Drawing inspiration from Troovy's vibrant, playful-yet-premium aesthetic targeting health-conscious parents. The design balances kid-friendly energy with parental trust and sophistication.
+**Reference-Based**: Drawing inspiration from The Crunch era's vibrant, playful-yet-premium aesthetic targeting health-conscious parents. The design balances kid-friendly energy with parental trust and sophistication.
 
 ## Core Design Principles
 - **Vibrant Warmth**: Energetic but trustworthy, appealing to both children and parents

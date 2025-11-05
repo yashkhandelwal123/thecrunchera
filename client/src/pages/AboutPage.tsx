@@ -36,7 +36,7 @@ export default function AboutPage() {
               </h2>
               <div className="space-y-4 text-lg text-muted-foreground">
                 <p>
-                  TroovyBites was born from a simple frustration: why is it so hard to find healthy food that kids actually want to eat?
+                  The was born from a simple frustration: why is it so hard to find healthy food that kids actually want to eat?
                 </p>
                 <p>
                   As parents ourselves, we were tired of choosing between nutritious ingredients and food our children would actually enjoy. The grocery store aisles were filled with either ultra-processed junk food marketed to kids, or healthy options that ended up in the trash.
@@ -45,7 +45,7 @@ export default function AboutPage() {
                   So we decided to create something different. We spent months in our own kitchens, testing recipes with our kids and their friends. We learned that children don't need artificial flavors and loads of sugar—they just need food that tastes good and feels fun.
                 </p>
                 <p className="font-medium text-foreground">
-                  Today, TroovyBites brings that mission to thousands of families, making healthy eating something kids look forward to.
+                  Today, The Crunch eraBites brings that mission to thousands of families, making healthy eating something kids look forward to.
                 </p>
               </div>
             </div>
@@ -158,7 +158,7 @@ export default function AboutPage() {
                   <li>Packaged in recyclable or compostable materials</li>
                 </ul>
                 <p className="font-medium text-foreground">
-                  When you choose TroovyBites, you're supporting sustainable agriculture and a healthier planet for our children's future.
+                  When you choose The Crunch eraBites, you're supporting sustainable agriculture and a healthier planet for our children's future.
                 </p>
               </div>
             </div>
