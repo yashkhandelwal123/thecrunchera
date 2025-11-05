@@ -27,10 +27,16 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+
+  // ✅ FIX 1: use 'dist' as Cloudflare expects
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    outDir: path.resolve(import.meta.dirname, "dist"),
     emptyOutDir: true,
   },
+
+  // ✅ FIX 2: make assets load correctly in production
+  base: "./",
+
   server: {
     fs: {
       strict: true,
