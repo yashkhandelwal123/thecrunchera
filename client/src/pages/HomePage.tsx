@@ -9,7 +9,7 @@ import type { Product, Testimonial } from "@shared/schema";
 import ProductCard from "@/components/ProductCard";
 import TrustBadge from "@/components/TrustBadge";
 import { useState } from "react";
-import heroImage from "@assets/generated_images/Kids_enjoying_healthy_snacks_outdoors_03593304.png";
+import heroImage from "@assets/generated_images/Gemini_Generated_Image_dvg938dvg938dvg9.png"
 import {BASE_URL} from "../ENDPOINTS"
 
 const testimonials: Testimonial[] = [
