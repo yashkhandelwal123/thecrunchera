@@ -44,7 +44,7 @@ export default function AboutPage() {
                 <p>
                   So we decided to create something different. We spent months in our own kitchens, testing recipes with our kids and their friends. We learned that children don't need artificial flavors and loads of sugar—they just need food that tastes good and feels fun.
                 </p>
-                <p className="font-medium text-foreground">
+      -          <p className="font-medium text-foreground">
                   Today, The Crunch eraBites brings that mission to thousands of families, making healthy eating something kids look forward to.
                 </p>
               </div>

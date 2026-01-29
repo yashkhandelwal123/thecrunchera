@@ -6,13 +6,14 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import {BASE_URL} from "../ENDPOINTS"
 
 export default function Footer() {
   const [email, setEmail] = useState("");
   const { toast } = useToast();
 
   const newsletterMutation = useMutation({
-    mutationFn: (email: string) => apiRequest("POST", "/api/newsletter", { email }),
+    mutationFn: (email: string) => apiRequest("POST", `${BASE_URL}/api/newsletter`, { email }),
     onSuccess: () => {
       toast({
         title: "Subscribed!",
@@ -62,7 +63,7 @@ export default function Footer() {
               <span className="font-heading font-bold text-xl">The Crunch Era</span>
             </div>
             <p className="text-sm text-muted-foreground mb-4">
-              Wholesome, delicious, and kid-approved healthy food for families who care.
+              Wholesome, delicious, and Crunch-Approved healthy food for families who care.
             </p>
             <div className="flex gap-2">
               <Button variant="ghost" size="icon" className="rounded-full" data-testid="link-facebook">

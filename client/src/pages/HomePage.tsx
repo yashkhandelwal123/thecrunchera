@@ -10,6 +10,7 @@ import ProductCard from "@/components/ProductCard";
 import TrustBadge from "@/components/TrustBadge";
 import { useState } from "react";
 import heroImage from "@assets/generated_images/Kids_enjoying_healthy_snacks_outdoors_03593304.png";
+import {BASE_URL} from "../ENDPOINTS"
 
 const testimonials: Testimonial[] = [
   {
@@ -46,7 +47,7 @@ export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
   const { data: products, isLoading } = useQuery<Product[]>({
-    queryKey: ["/api/products"],
+    queryKey: [`${BASE_URL}/api/products`],
   });
 
   const featuredProducts = products?.filter((p) => p.featured === 1)?.slice(0, 8) || [];
@@ -78,7 +79,7 @@ export default function HomePage() {
             transition={{ duration: 0.5 }}
           >
             <h1 className="font-heading font-bold text-5xl md:text-6xl lg:text-7xl text-white mb-6" data-testid="text-hero-title">
-              Wholesome. Delicious.<br />Kid-Approved.
+              Wholesome. Delicious.<br />Crunch-Approved.
             </h1>
           </motion.div>
 
@@ -131,7 +132,7 @@ export default function HomePage() {
             </div>
             <div className="flex items-center gap-2">
               <Heart className="w-5 h-5" />
-              <span className="font-medium">Kid-Approved Taste</span>
+              <span className="font-medium">Crunch-Approved Taste</span>
             </div>
           </motion.div>
         </div>
@@ -208,7 +209,7 @@ export default function HomePage() {
             />
             <TrustBadge
               icon={Heart}
-              title="Kid-Approved"
+              title="Crunch-Approved"
               description="Taste-tested and loved by real kids and families"
             />
             <TrustBadge

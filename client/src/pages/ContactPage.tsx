@@ -14,6 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { insertContactSchema } from "@shared/schema";
 import type { InsertContact } from "@shared/schema";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {BASE_URL} from "../ENDPOINTS"
 
 export default function ContactPage() {
   const { toast } = useToast();
@@ -28,7 +29,7 @@ export default function ContactPage() {
   });
 
   const contactMutation = useMutation({
-    mutationFn: (data: InsertContact) => apiRequest("POST", "/api/contact", data),
+    mutationFn: (data: InsertContact) => apiRequest("POST", `${BASE_URL}/api/contact`, data),
     onSuccess: () => {
       toast({
         title: "Message sent!",

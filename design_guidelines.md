@@ -45,7 +45,7 @@
 - Overlay: Subtle gradient to ensure text readability
 - Content positioning: Left-aligned or centered with max-w-2xl
 - Hero CTA: Large rounded button with blurred background, prominent "Shop Now" text
-- Trust badges row below hero: "100% Natural • No Preservatives • Kid-Approved"
+- Trust badges row below hero: "100% Natural • No Preservatives • Family-Approved"
 
 ### Product Cards
 - Rounded-2xl cards with subtle shadow and hover lift effect
@@ -60,7 +60,7 @@
 - Icon + Text combinations displayed prominently
 - Circular or rounded-square icon backgrounds
 - Grid display: 3-4 columns on desktop, 2 columns on mobile
-- Examples: Leaf icon for "100% Natural", Shield for "No Preservatives", Heart for "Kid-Approved"
+- Examples: Leaf icon for "100% Natural", Shield for "No Preservatives", Heart for "Crunch-Approved"
 
 ### Testimonials Carousel
 - Card-based testimonials with rounded-3xl backgrounds

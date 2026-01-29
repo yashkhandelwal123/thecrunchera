@@ -49,7 +49,7 @@ export class MemStorage implements IStorage {
       },
       {
         name: "Creamy Alfredo Sauce",
-        description: "Rich and creamy sauce made with real cheese and organic cream. Kid-approved!",
+        description: "Rich and creamy sauce made with real cheese and organic cream. Crunch-Approved!",
         price: "9.99",
         category: "Sauces",
         image: "/attached_assets/generated_images/Organic_pasta_sauce_product_794bc74f.png",
