@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -13,11 +13,18 @@ import ContactPage from "@/pages/ContactPage";
 import CartPage from "@/pages/CartPage";
 import NotFound from "@/pages/not-found";
 import ManufacturingDetails from "@/pages/ManufacturingDetails";
+import JalwaInvitation from "./pages/Ridhav";
+
+// Routes that should render full-bleed, with no site chrome
+const NO_CHROME_ROUTES = ["/Ridhav"];
 
 function Router() {
+  const [location] = useLocation();
+  const hideChrome = NO_CHROME_ROUTES.includes(location);
+
   return (
     <>
-      <Navbar />
+      {!hideChrome && <Navbar />}
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/products" component={ProductsPage} />
@@ -25,9 +32,10 @@ function Router() {
         <Route path="/manufacturing-details" component={ManufacturingDetails} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/cart" component={CartPage} />
+        <Route path="/Ridhav" component={JalwaInvitation} />
         <Route component={NotFound} />
       </Switch>
-      <Footer />
+      {!hideChrome && <Footer />}
     </>
   );
 }

@@ -96,7 +96,7 @@ export default function CartPage() {
                           {item.product.category}
                         </p>
                         <p className="text-xl font-bold text-primary" data-testid={`text-cart-item-price-${item.product.id}`}>
-                          ${parseFloat(item.product.price).toFixed(2)}
+                        ₹{parseFloat(item.product.price).toFixed(2)}
                         </p>
                       </div>
 

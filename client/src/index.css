@@ -1,5 +1,5 @@
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@600&display=swap');
-
+/* Replace your current @import with this */
+@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@600&family=Noto+Sans:wght@400;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -78,10 +78,10 @@
   --chart-4: 15 80% 58%;
   --chart-5: 140 60% 42%;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Inter', 'Noto Sans', system-ui, -apple-system, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --font-heading: 'Quicksand', sans-serif;
+  --font-heading: 'Quicksand', 'Noto Sans', sans-serif;
   --font-accent: 'Fredoka', sans-serif;
   --radius: .75rem;
   --shadow-2xs: 0px 1px 2px 0px hsl(20 8% 12% / 0.05);

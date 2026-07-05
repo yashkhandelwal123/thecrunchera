@@ -48,7 +48,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           </div>
           <div className="flex items-center justify-between gap-3">
             <span className="text-xl font-bold text-primary" data-testid={`text-product-price-${product.id}`}>
-              ${parseFloat(product.price).toFixed(2)}
+            <span className="currency">₹</span>{parseFloat(product.price).toFixed(2)}
             </span>
             <Button
               onClick={() => addToCart(product)}
