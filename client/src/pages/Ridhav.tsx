@@ -17,6 +17,21 @@ function useRandomPoints(count, topRange) {
     return pts;
   }, [count, topRange]);
 }
+if (typeof document !== "undefined") {
+    const style = document.createElement("style");
+    style.innerHTML = `
+      @keyframes jalwa-bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0) translateX(-50%); }
+        40% { transform: translateY(-10px) translateX(-50%); }
+        60% { transform: translateY(-5px) translateX(-50%); }
+      }
+      .jalwa-scroll-cue-animated {
+        animation: jalwa-bounce 2s infinite;
+        transition: opacity 0.4s ease, visibility 0.4s ease;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
 export default function JalwaInvitation() {
   const [envelopeState, setEnvelopeState] = useState("closed"); // "closed" | "opening" | "open"
@@ -161,13 +176,13 @@ export default function JalwaInvitation() {
             pointerEvents: envelopeState === "opening" ? "none" : "auto",
           }}
         >
-          <p style={{
+          <h1 style={{
             fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", letterSpacing: "0.12em",
-            color: "#8a6a2f", fontSize: "clamp(13px,2vw,15px)", marginBottom: 26, opacity: envelopeState === "opening" ? 0 : 0.9,
-            transition: "opacity 0.4s ease",
+            color: "#8a6a2f", fontSize: "clamp(30px,2vw,15px)", marginBottom: 26, opacity: envelopeState === "opening" ? 0 : 0.9,
+            transition: "opacity 0.8s ease",
           }}>
             A little something has arrived for you
-          </p>
+          </h1>
 
           <button
             onClick={handleOpenEnvelope}
@@ -390,7 +405,7 @@ export default function JalwaInvitation() {
         {/* Page 1: Opening */}
         <div className="jalwa-page" style={{ minHeight: "100vh", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8vh 8vw", position: "relative" }}>
         <div style={{ textAlign: "center", maxWidth: 560, animation: "fadeUp 1s ease" }}>
-          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", letterSpacing: "0.12em", color: "#8a6a2f", fontSize: "clamp(13px,2vw,16px)", marginBottom: 14, opacity: 0.9 }}>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", letterSpacing: "0.12em", color: "#8a6a2f", fontSize: "clamp(30px,2vw,16px)", marginBottom: 14, opacity: 0.9 }}>
             Welcoming the newest member of our family
           </p>
           <h1 style={{ fontFamily: "'Marcellus', serif", fontWeight: 400, lineHeight: 1.08, fontSize: "clamp(34px,6.4vw,64px)", color: "#22391f", textShadow: "0 2px 18px rgba(255,255,255,0.5)", margin: 0 }}>
@@ -445,7 +460,7 @@ export default function JalwaInvitation() {
         {/* Page 3: Arrival */}
         <div className="jalwa-page" style={{ minHeight: "100vh", width: "100%", boxSizing: "border-box", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "8vh 8vw", position: "relative" }}>
         <div style={{ textAlign: "center", maxWidth: 520, animation: "fadeUp 1s ease" }}>
-          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontWeight: 700, letterSpacing: "0.12em", color: "#6b4f18", fontSize: "clamp(14px,2.1vw,17px)", marginBottom: 14, opacity: 1, textShadow: "0 1px 10px rgba(255,255,255,0.7)" }}>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", fontWeight: 700, letterSpacing: "0.12em", color: "#6b4f18", fontSize: "clamp(20px,2.1vw,17px)", marginBottom: 14, opacity: 1, textShadow: "0 1px 10px rgba(255,255,255,0.7)" }}>
             his name is
           </p>
           <h1 style={{
@@ -461,7 +476,7 @@ export default function JalwaInvitation() {
             <ellipse cx="50" cy="18" rx="10" ry="14" fill="none" stroke="#3f6b4f" strokeWidth="2" />
             <circle cx="50" cy="18" r="4" fill="#3f6b4f" />
           </svg>
-          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", color: "#4c7a45", fontSize: "clamp(15px,2.2vw,19px)", marginTop: 14 }}>
+          <p style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", color: "#4c7a45", fontSize: "clamp(20px,2.2vw,19px)", marginTop: 14 }}>
             meaning, "blessed with prosperity and abundance"
           </p>
 
@@ -495,7 +510,7 @@ export default function JalwaInvitation() {
           <div style={{ fontFamily: "'Marcellus', serif", fontSize: "clamp(24px,4vw,32px)", color: "#3f6b4f", marginBottom: 6 }}>
             Jalwa Ceremony
           </div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", color: "#8a6a2f", fontSize: "clamp(15px,2vw,18px)", marginBottom: 22 }}>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", color: "#8a6a2f", fontSize: "clamp(20px,2vw,18px)", marginBottom: 22 }}>
             the naming &amp; blessing of Ridhav Khandelwal
           </div>
 
@@ -532,7 +547,7 @@ export default function JalwaInvitation() {
         </div>
 
         {/* Sign-off */}
-        <p style={{ fontSize: 13, color: "#4c7a45", opacity: 0.9, margin: 0 }}>
+        <p style={{ fontSize: 30, color: "#4c7a45", opacity: 0.9, margin: 0 }}>
           With love, Bhukmaria family
         </p>
         </div>
