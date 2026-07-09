@@ -176,12 +176,22 @@ export default function JalwaInvitation() {
             pointerEvents: envelopeState === "opening" ? "none" : "auto",
           }}
         >
-          <h1 style={{
-            fontFamily: "'Cormorant Garamond', serif", fontStyle: "italic", letterSpacing: "0.12em",
-            color: "#8a6a2f", fontSize: "clamp(30px,2vw,15px)", marginBottom: 26, opacity: envelopeState === "opening" ? 0 : 0.9,
-            transition: "opacity 0.8s ease",
-          }}>
-            A little something has arrived for you
+          <h1 style={{ 
+            fontFamily: 'Cormorant Garamond, serif', 
+            fontStyle: 'italic', 
+            letterSpacing: '0.12em', 
+            color: '#8a6a2f', 
+            fontSize: 'clamp(24px, 5vw, 42px)', 
+            marginBottom: 'clamp(16px, 3vw, 26px)', 
+            width: '100%',
+            textAlign: 'center', 
+            paddingLeft: '16px', 
+            paddingRight: '16px',
+            boxSizing: 'border-box',
+            opacity: envelopeState === 'opening' ? 0 : 0.9, 
+            transition: 'opacity 0.8s ease', 
+          }}> 
+            A little something has arrived for you 
           </h1>
 
           <button
@@ -523,7 +533,7 @@ export default function JalwaInvitation() {
             icon={<><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></>}
           />
           <DetailRow
-            label="Venue" value="Shri Khole Ke Hanuman Ji Temple, Jaipur"
+            label="Venue" value="Shri Khole Ke Hanuman Ji Temple (Rasoi No. 13), Jaipur"
             icon={<><path d="M12 21s7-6.5 7-12a7 7 0 1 0-14 0c0 5.5 7 12 7 12z" /><circle cx="12" cy="9" r="2.4" /></>}
           />
 
@@ -547,9 +557,20 @@ export default function JalwaInvitation() {
         </div>
 
         {/* Sign-off */}
-        <p style={{ fontSize: 30, color: "#4c7a45", opacity: 0.9, margin: 0 }}>
+        <p style={{ 
+          fontFamily: 'Cormorant Garamond, serif', // Optional: matches your heading font
+          fontSize: 'clamp(18px, 4vw, 30px)', // Fixed: scales between 18px and 30px
+          color: '#2B1A0E', 
+          opacity: 0.9, 
+          margin: 0,
+          textAlign: 'center', // Centers the text if it wraps on narrow screens
+          paddingLeft: '16px', // Prevents screen edge clipping
+          paddingRight: '16px',
+          boxSizing: 'border-box',
+        }}>
           With love, Bhukmaria family
         </p>
+
         </div>
       </div>
       )}
