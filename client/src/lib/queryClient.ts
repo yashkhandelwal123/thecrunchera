@@ -19,7 +19,7 @@ export async function apiRequest(
   path: string,
   data?: unknown,
 ): Promise<Response> {
-  const res = await fetch(`${BASE_URL}/api/products`, {
+  const res = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: data
       ? {
@@ -27,7 +27,7 @@ export async function apiRequest(
         }
       : undefined,
     body: data ? JSON.stringify(data) : undefined,
-    
+    credentials: "include",
   });
 
   await throwIfResNotOk(res);
@@ -42,11 +42,11 @@ type UnauthorizedBehavior = "returnNull" | "throw";
 export const getQueryFn =
   <T>({ on401 }: { on401: UnauthorizedBehavior }): QueryFunction<T> =>
   async ({ queryKey }) => {
-    // queryKey must be like: ["api", "products"]
-    const path = (queryKey as string[]).join("/");
-    const url = `${BASE_URL}/api/products`;
+    // queryKey[0] should be the path, e.g. "/api/products" or "/api/products/123"
+    const path = queryKey[0] as string;
+    const url = `${BASE_URL}${path}`;
 
-    const res = await fetch(url);
+    const res = await fetch(url, { credentials: "include" });
 
     if (res.status === 401 && on401 === "returnNull") {
       return null as T;

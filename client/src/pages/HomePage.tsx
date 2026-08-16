@@ -9,7 +9,7 @@ import type { Product, Testimonial } from "@shared/schema";
 import ProductCard from "@/components/ProductCard";
 import TrustBadge from "@/components/TrustBadge";
 import { useState } from "react";
-import heroImage from "@assets/generated_images/Gemini_Generated_Image_dvg938dvg938dvg9.png"
+import heroImage from "@assets/generated_images/Gemini_Generated_Image_dvg938dvg938dvg9.webp"
 import {BASE_URL} from "../ENDPOINTS"
 
 const testimonials: Testimonial[] = [
@@ -47,7 +47,7 @@ export default function HomePage() {
   const [currentTestimonial, setCurrentTestimonial] = useState(0);
 
   const { data: products, isLoading } = useQuery<Product[]>({
-    queryKey: [`${BASE_URL}/api/products`],
+    queryKey: ["/api/products"],
   });
 
   const featuredProducts = products?.filter((p) => p.featured === 1)?.slice(0, 8) || [];

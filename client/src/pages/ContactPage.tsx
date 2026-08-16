@@ -29,7 +29,7 @@ export default function ContactPage() {
   });
 
   const contactMutation = useMutation({
-    mutationFn: (data: InsertContact) => apiRequest("POST", `${BASE_URL}/api/contact`, data),
+    mutationFn: (data: InsertContact) => apiRequest("POST", "/api/contact", data),
     onSuccess: () => {
       toast({
         title: "Message sent!",

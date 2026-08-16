@@ -1,8 +1,17 @@
 import express, { type Request, Response, NextFunction } from "express";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
 const app = express();
+
+// Serve product/hero images referenced by plain string paths (e.g. from
+// storage.ts) — the @assets Vite alias only resolves JS import statements,
+// not runtime URLs the browser requests directly.
+app.use(
+  "/attached_assets",
+  express.static(path.resolve(import.meta.dirname, "..", "attached_assets")),
+);
 
 declare module 'http' {
   interface IncomingMessage {

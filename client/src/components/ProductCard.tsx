@@ -22,11 +22,13 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
     >
       <Card className="overflow-hidden hover-elevate active-elevate-2 group h-full flex flex-col" data-testid={`card-product-${product.id}`}>
         <div className="relative aspect-square bg-muted overflow-hidden">
-          <img
-            src={product.image}
-            alt={product.name}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-          />
+        <img
+          src={product.image}
+          alt={product.name}
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+        />
           {product.badge && (
             <Badge
               className="absolute top-3 right-3"

@@ -6,15 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
-import {BASE_URL} from "../ENDPOINTS"
-
-const categories = ["All", "Sauces", "Snacks", "Pasta", "Drinks"];
+const categories = ["All", "Chips"];
 
 export default function ProductsPage() {
   const [selectedCategory, setSelectedCategory] = useState("All");
 
   const { data: products, isLoading } = useQuery<Product[]>({
-    queryKey: [`${BASE_URL}/api/products`],
+    queryKey: ["/api/products"],
   });
 
   const filteredProducts = products?.filter((product) =>

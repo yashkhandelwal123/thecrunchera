@@ -1,8 +1,8 @@
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Heart, Users, Leaf, TrendingUp } from "lucide-react";
-import founderImage from "@assets/generated_images/Family_preparing_healthy_food_7c83a44c.png";
-import ingredientsImage from "@assets/generated_images/Fresh_fruits_and_vegetables_closeup_56783cc8.png";
+import founderImage from "@assets/generated_images/Family_preparing_healthy_food_7c83a44c.webp";
+import ingredientsImage from "@assets/generated_images/Fresh_fruits_and_vegetables_closeup_56783cc8.webp";
 
 export default function AboutPage() {
   return (
@@ -52,6 +52,8 @@ export default function AboutPage() {
             <div className="order-1 lg:order-2">
               <img
                 src={founderImage}
+                loading="lazy"
+                decoding="async"  
                 alt="Family preparing healthy food together"
                 className="rounded-2xl w-full h-auto shadow-lg"
               />
@@ -138,6 +140,8 @@ export default function AboutPage() {
                 src={ingredientsImage}
                 alt="Fresh organic fruits and vegetables"
                 className="rounded-2xl w-full h-auto shadow-lg"
+                loading="lazy"
+                decoding="async"
               />
             </div>
             <div>

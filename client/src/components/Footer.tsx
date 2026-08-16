@@ -6,14 +6,14 @@ import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import {BASE_URL} from "../ENDPOINTS"
+// import {BASE_URL} from "../ENDPOINTS"
 
 export default function Footer() {
   const [email, setEmail] = useState("");
   const { toast } = useToast();
 
   const newsletterMutation = useMutation({
-    mutationFn: (email: string) => apiRequest("POST", `${BASE_URL}/api/newsletter`, { email }),
+    mutationFn: (email: string) => apiRequest("POST", "/api/newsletter", { email }),
     onSuccess: () => {
       toast({
         title: "Subscribed!",
