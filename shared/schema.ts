@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, integer } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, integer, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -47,6 +47,23 @@ export const insertContactSchema = createInsertSchema(contacts).omit({
 
 export type InsertContact = z.infer<typeof insertContactSchema>;
 export type Contact = typeof contacts.$inferSelect;
+
+export const users = pgTable("users", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  googleId: text("google_id").notNull().unique(),
+  email: text("email").notNull().unique(),
+  name: text("name").notNull(),
+  avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+});
+
+export type InsertUser = z.infer<typeof insertUserSchema>;
+export type User = typeof users.$inferSelect;
 
 // Frontend-only types for cart (stored in localStorage)
 export interface CartItem {

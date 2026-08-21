@@ -1,6 +1,9 @@
 import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
+import session from "express-session";
+import connectPgSimple from "connect-pg-simple";
+import createMemoryStore from "memorystore";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -26,6 +29,38 @@ app.use(express.json({
   }
 }));
 app.use(express.urlencoded({ extended: false }));
+
+// Sessions: backed by Postgres (so logins survive a server restart) when
+// DATABASE_URL is set, otherwise an in-memory store — fine for quick local
+// testing, but sessions won't survive a restart in that case.
+const PgSession = connectPgSimple(session);
+const MemoryStore = createMemoryStore(session);
+
+if (!process.env.SESSION_SECRET) {
+  console.warn(
+    "[session] SESSION_SECRET not set — using an insecure default. " +
+      "Set SESSION_SECRET in your .env before deploying.",
+  );
+}
+
+app.use(
+  session({
+    store: process.env.DATABASE_URL
+      ? new PgSession({
+          conString: process.env.DATABASE_URL,
+          createTableIfMissing: true,
+        })
+      : new MemoryStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
+    secret: process.env.SESSION_SECRET || "dev-secret-change-me",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 1000 * 60 * 60 * 24 * 30, // 30 days
+    },
+  }),
+);
 
 app.use((req, res, next) => {
   const start = Date.now();

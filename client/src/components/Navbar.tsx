@@ -1,14 +1,26 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Menu, X, Leaf } from "lucide-react";
+import { ShoppingCart, Menu, X, Leaf, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
+import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function Navbar() {
   const [location] = useLocation();
   const { itemCount } = useCart();
+  const { user, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navItems = [
@@ -66,6 +78,36 @@ export default function Navbar() {
               </Button>
             </Link>
 
+            <div className="hidden md:block">
+              {user ? (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="rounded-full"
+                      data-testid="button-account-menu"
+                    >
+                      <Avatar className="h-8 w-8">
+                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => signOut()} data-testid="button-signout">
+                      <LogOut className="w-4 h-4 mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              ) : (
+                <GoogleSignInButton />
+              )}
+            </div>
+
             <Button
               variant="ghost"
               size="icon"
@@ -100,6 +142,32 @@ export default function Navbar() {
                   </Button>
                 </Link>
               ))}
+
+              <div className="pt-2 border-t">
+                {user ? (
+                  <div className="flex items-center justify-between px-2 py-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Avatar className="h-8 w-8 shrink-0">
+                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
+                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium truncate">{user.name}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => signOut()}
+                      data-testid="button-mobile-signout"
+                    >
+                      <LogOut className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="px-2 py-2">
+                    <GoogleSignInButton />
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}

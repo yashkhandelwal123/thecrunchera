@@ -5,9 +5,12 @@ import {
   type InsertNewsletter,
   type Contact,
   type InsertContact,
+  type User,
+  type InsertUser,
   products,
   newsletters,
   contacts,
+  users,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
@@ -26,17 +29,24 @@ export interface IStorage {
   // Contacts
   createContact(contact: InsertContact): Promise<Contact>;
   getAllContacts(): Promise<Contact[]>;
+
+  // Users
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByGoogleId(googleId: string): Promise<User | undefined>;
+  createUser(user: InsertUser): Promise<User>;
 }
 
 export class MemStorage implements IStorage {
   private products: Map<string, Product>;
   private newsletters: Map<string, Newsletter>;
   private contacts: Map<string, Contact>;
+  private users: Map<string, User>;
 
   constructor() {
     this.products = new Map();
     this.newsletters = new Map();
     this.contacts = new Map();
+    this.users = new Map();
     this.seedProducts();
   }
 
@@ -146,6 +156,28 @@ export class MemStorage implements IStorage {
 
   async getAllContacts(): Promise<Contact[]> {
     return Array.from(this.contacts.values());
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.googleId === googleId,
+    );
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const id = randomUUID();
+    const user: User = {
+      ...insertUser,
+      id,
+      avatarUrl: insertUser.avatarUrl ?? null,
+      createdAt: new Date(),
+    };
+    this.users.set(id, user);
+    return user;
   }
 }
 
@@ -278,6 +310,27 @@ export class DbStorage implements IStorage {
   async getAllContacts(): Promise<Contact[]> {
     const { db } = await import("./db");
     return db.select().from(contacts);
+  }
+
+  async getUserById(id: string): Promise<User | undefined> {
+    const { db } = await import("./db");
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByGoogleId(googleId: string): Promise<User | undefined> {
+    const { db } = await import("./db");
+    const [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.googleId, googleId));
+    return user;
+  }
+
+  async createUser(insertUser: InsertUser): Promise<User> {
+    const { db } = await import("./db");
+    const [user] = await db.insert(users).values(insertUser).returning();
+    return user;
   }
 }
 

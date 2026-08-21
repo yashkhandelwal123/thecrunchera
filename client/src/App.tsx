@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/contexts/CartContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HomePage from "@/pages/HomePage";
@@ -44,10 +45,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <CartProvider>
-          <Toaster />
-          <Router />
-        </CartProvider>
+        <AuthProvider>
+          <CartProvider>
+            <Toaster />
+            <Router />
+          </CartProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
