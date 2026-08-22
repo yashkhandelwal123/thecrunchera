@@ -7,10 +7,16 @@ import {
   type InsertContact,
   type User,
   type InsertUser,
+  type Order,
+  type InsertOrder,
+  type OrderItem,
+  type InsertOrderItem,
   products,
   newsletters,
   contacts,
   users,
+  orders,
+  orderItems,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
 import { eq } from "drizzle-orm";
@@ -34,6 +40,15 @@ export interface IStorage {
   getUserById(id: string): Promise<User | undefined>;
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+
+  // Orders
+  createOrder(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order>;
+  getOrderById(id: string): Promise<Order | undefined>;
+  getOrdersByUserId(userId: string): Promise<Order[]>;
+  getOrderItems(orderId: string): Promise<OrderItem[]>;
+  updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
+  setOrderRazorpayOrderId(id: string, razorpayOrderId: string): Promise<Order | undefined>;
+  markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -41,12 +56,16 @@ export class MemStorage implements IStorage {
   private newsletters: Map<string, Newsletter>;
   private contacts: Map<string, Contact>;
   private users: Map<string, User>;
+  private orders: Map<string, Order>;
+  private orderItems: Map<string, OrderItem>;
 
   constructor() {
     this.products = new Map();
     this.newsletters = new Map();
     this.contacts = new Map();
     this.users = new Map();
+    this.orders = new Map();
+    this.orderItems = new Map();
     this.seedProducts();
   }
 
@@ -178,6 +197,73 @@ export class MemStorage implements IStorage {
     };
     this.users.set(id, user);
     return user;
+  }
+
+  async createOrder(
+    insertOrder: InsertOrder,
+    items: Omit<InsertOrderItem, "orderId">[],
+  ): Promise<Order> {
+    const id = randomUUID();
+    const order: Order = {
+      ...insertOrder,
+      id,
+      status: "pending",
+      shippingAddressLine2: insertOrder.shippingAddressLine2 ?? null,
+      razorpayOrderId: null,
+      razorpayPaymentId: null,
+      createdAt: new Date(),
+    };
+    this.orders.set(id, order);
+
+    items.forEach((item) => {
+      const itemId = randomUUID();
+      this.orderItems.set(itemId, { ...item, id: itemId, orderId: id });
+    });
+
+    return order;
+  }
+
+  async getOrderById(id: string): Promise<Order | undefined> {
+    return this.orders.get(id);
+  }
+
+  async getOrdersByUserId(userId: string): Promise<Order[]> {
+    return Array.from(this.orders.values())
+      .filter((order) => order.userId === userId)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getOrderItems(orderId: string): Promise<OrderItem[]> {
+    return Array.from(this.orderItems.values()).filter(
+      (item) => item.orderId === orderId,
+    );
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    const updated = { ...order, status };
+    this.orders.set(id, updated);
+    return updated;
+  }
+
+  async setOrderRazorpayOrderId(
+    id: string,
+    razorpayOrderId: string,
+  ): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    const updated = { ...order, razorpayOrderId };
+    this.orders.set(id, updated);
+    return updated;
+  }
+
+  async markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    const updated = { ...order, status: "paid", razorpayPaymentId };
+    this.orders.set(id, updated);
+    return updated;
   }
 }
 
@@ -331,6 +417,80 @@ export class DbStorage implements IStorage {
     const { db } = await import("./db");
     const [user] = await db.insert(users).values(insertUser).returning();
     return user;
+  }
+
+  async createOrder(
+    insertOrder: InsertOrder,
+    items: Omit<InsertOrderItem, "orderId">[],
+  ): Promise<Order> {
+    const { db } = await import("./db");
+    const [order] = await db.insert(orders).values(insertOrder).returning();
+
+    if (items.length > 0) {
+      await db
+        .insert(orderItems)
+        .values(items.map((item) => ({ ...item, orderId: order.id })));
+    }
+
+    return order;
+  }
+
+  async getOrderById(id: string): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    return order;
+  }
+
+  async getOrdersByUserId(userId: string): Promise<Order[]> {
+    const { db } = await import("./db");
+    const results = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.userId, userId));
+    return results.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    );
+  }
+
+  async getOrderItems(orderId: string): Promise<OrderItem[]> {
+    const { db } = await import("./db");
+    return db
+      .select()
+      .from(orderItems)
+      .where(eq(orderItems.orderId, orderId));
+  }
+
+  async updateOrderStatus(id: string, status: string): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db
+      .update(orders)
+      .set({ status })
+      .where(eq(orders.id, id))
+      .returning();
+    return order;
+  }
+
+  async setOrderRazorpayOrderId(
+    id: string,
+    razorpayOrderId: string,
+  ): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db
+      .update(orders)
+      .set({ razorpayOrderId })
+      .where(eq(orders.id, id))
+      .returning();
+    return order;
+  }
+
+  async markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db
+      .update(orders)
+      .set({ status: "paid", razorpayPaymentId })
+      .where(eq(orders.id, id))
+      .returning();
+    return order;
   }
 }
 

@@ -156,7 +156,7 @@ export default function CartPage() {
                 <div className="space-y-3 mb-6">
                   <div className="flex justify-between text-muted-foreground">
                     <span>Subtotal</span>
-                    <span data-testid="text-subtotal">${cart.total.toFixed(2)}</span>
+                    <span data-testid="text-subtotal">₹{cart.total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-muted-foreground">
                     <span>Shipping</span>
@@ -164,13 +164,15 @@ export default function CartPage() {
                   </div>
                   <div className="border-t pt-3 flex justify-between font-bold text-xl">
                     <span>Total</span>
-                    <span className="text-primary" data-testid="text-total">${cart.total.toFixed(2)}</span>
+                    <span className="text-primary" data-testid="text-total">₹{cart.total.toFixed(2)}</span>
                   </div>
                 </div>
 
-                <Button size="lg" className="w-full rounded-xl mb-4" data-testid="button-checkout">
-                  Proceed to Checkout
-                </Button>
+                <Link href="/checkout">
+                  <Button size="lg" className="w-full rounded-xl mb-4" data-testid="button-checkout">
+                    Proceed to Checkout
+                  </Button>
+                </Link>
 
                 <Link href="/products">
                   <Button variant="outline" size="lg" className="w-full rounded-xl" data-testid="button-continue-shopping">

@@ -12,6 +12,9 @@ import ProductsPage from "@/pages/ProductsPage";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import CartPage from "@/pages/CartPage";
+import CheckoutPage from "@/pages/CheckoutPage";
+import OrdersPage from "@/pages/OrdersPage";
+import OrderDetailPage from "@/pages/OrderDetailPage";
 import NotFound from "@/pages/not-found";
 import ManufacturingDetails from "@/pages/ManufacturingDetails";
 import JalwaInvitation from "./pages/Ridhav";
@@ -33,6 +36,9 @@ function Router() {
         <Route path="/manufacturing-details" component={ManufacturingDetails} />
         <Route path="/contact" component={ContactPage} />
         <Route path="/cart" component={CartPage} />
+        <Route path="/checkout" component={CheckoutPage} />
+        <Route path="/orders" component={OrdersPage} />
+        <Route path="/orders/:id" component={OrderDetailPage} />
         <Route path="/Ridhav" component={JalwaInvitation} />
         <Route component={NotFound} />
       </Switch>

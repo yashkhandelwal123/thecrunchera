@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Menu, X, Leaf, LogOut } from "lucide-react";
+import { ShoppingCart, Menu, X, Leaf, LogOut, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -97,6 +97,12 @@ export default function Navbar() {
                   <DropdownMenuContent align="end">
                     <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
                     <DropdownMenuSeparator />
+                    <Link href="/orders">
+                      <DropdownMenuItem data-testid="link-my-orders">
+                        <Package className="w-4 h-4 mr-2" />
+                        My Orders
+                      </DropdownMenuItem>
+                    </Link>
                     <DropdownMenuItem onClick={() => signOut()} data-testid="button-signout">
                       <LogOut className="w-4 h-4 mr-2" />
                       Sign out
