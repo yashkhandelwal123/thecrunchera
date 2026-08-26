@@ -3,7 +3,11 @@ import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { openRazorpayCheckout } from "@/lib/razorpay";
+import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -31,11 +35,14 @@ interface OrderDetail {
 
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [order, setOrder] = useState<OrderDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isPaying, setIsPaying] = useState(false);
 
-  useEffect(() => {
+  const loadOrder = () => {
     fetch(`/api/orders/${id}`, { credentials: "include" })
       .then((res) => {
         if (!res.ok) throw new Error("not found");
@@ -44,7 +51,65 @@ export default function OrderDetailPage() {
       .then((data) => setOrder(data))
       .catch(() => setNotFound(true))
       .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    loadOrder();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  const handlePayNow = async () => {
+    if (!order) return;
+    setIsPaying(true);
+    try {
+      const rzpOrderRes = await apiRequest(
+        "POST",
+        "/api/checkout/create-razorpay-order",
+        { orderId: order.id },
+      );
+      const rzpOrder = await rzpOrderRes.json();
+
+      await openRazorpayCheckout({
+        keyId: rzpOrder.keyId,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        razorpayOrderId: rzpOrder.razorpayOrderId,
+        customerName: order.shippingName,
+        customerEmail: user?.email,
+        customerPhone: order.shippingPhone,
+        onSuccess: async (response) => {
+          try {
+            await apiRequest("POST", "/api/checkout/verify", {
+              orderId: order.id,
+              ...response,
+            });
+            toast({
+              title: "Payment successful!",
+              description: `Your order for ₹${order.total} is confirmed.`,
+            });
+            loadOrder();
+          } catch {
+            toast({
+              title: "Payment verification failed",
+              description:
+                "Your payment may have gone through. Please refresh or contact us.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsPaying(false);
+          }
+        },
+        onDismiss: () => setIsPaying(false),
+      });
+    } catch {
+      toast({
+        title: "Something went wrong",
+        description: "Couldn't start payment. Please try again.",
+        variant: "destructive",
+      });
+      setIsPaying(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -75,14 +140,35 @@ export default function OrderDetailPage() {
           animate={{ opacity: 1, y: 0 }}
           className="text-center mb-8"
         >
-          <CheckCircle2 className="w-14 h-14 text-primary mx-auto mb-4" />
+          {order.status === "pending" ? (
+            <Clock className="w-14 h-14 text-muted-foreground mx-auto mb-4" />
+          ) : (
+            <CheckCircle2 className="w-14 h-14 text-primary mx-auto mb-4" />
+          )}
           <h1 className="font-heading font-bold text-3xl mb-2">
-            Order placed!
+            {order.status === "pending" ? "Payment pending" : "Order placed!"}
           </h1>
           <p className="text-muted-foreground">
             Order #{order.id.slice(0, 8)} · Status:{" "}
             <span className="font-medium capitalize">{order.status}</span>
           </p>
+          {order.status === "pending" && (
+            <Button
+              className="mt-4 rounded-xl"
+              onClick={handlePayNow}
+              disabled={isPaying}
+              data-testid="button-pay-now"
+            >
+              {isPaying ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                `Pay ₹${order.total}`
+              )}
+            </Button>
+          )}
         </motion.div>
 
         <Card className="p-6 space-y-4 mb-6">

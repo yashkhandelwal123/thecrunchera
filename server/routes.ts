@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { OAuth2Client } from "google-auth-library";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { insertNewsletterSchema, insertContactSchema, checkoutSchema } from "@shared/schema";
 
@@ -232,6 +233,153 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ ...order, items });
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch order" });
+    }
+  });
+
+  // Creates a matching Razorpay order for one of our (already-created,
+  // still-pending) orders, and returns what the frontend needs to open
+  // Razorpay's Checkout widget. Amount is recalculated from the order
+  // stored in our DB — never trust an amount from the client.
+  app.post("/api/checkout/create-razorpay-order", requireAuth, async (req, res) => {
+    try {
+      const { orderId } = req.body;
+      if (!orderId || typeof orderId !== "string") {
+        return res.status(400).json({ error: "Missing orderId" });
+      }
+
+      const order = await storage.getOrderById(orderId);
+      if (!order || order.userId !== req.session.userId) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (order.status !== "pending") {
+        return res
+          .status(400)
+          .json({ error: `Order is already ${order.status}` });
+      }
+      if (!process.env.RAZORPAY_KEY_ID) {
+        return res.status(500).json({ error: "Payments are not configured on the server." });
+      }
+
+      const { razorpay } = await import("./razorpay");
+      // Razorpay amounts are in the smallest currency unit (paise for INR).
+      const amountInPaise = Math.round(parseFloat(order.total) * 100);
+
+      const razorpayOrder = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: "INR",
+        receipt: order.id,
+        notes: { orderId: order.id },
+      });
+
+      await storage.setOrderRazorpayOrderId(order.id, razorpayOrder.id);
+
+      res.json({
+        razorpayOrderId: razorpayOrder.id,
+        amount: amountInPaise,
+        currency: "INR",
+        keyId: process.env.RAZORPAY_KEY_ID,
+      });
+    } catch (error) {
+      console.error("Create Razorpay order error:", error);
+      res.status(500).json({ error: "Failed to start payment" });
+    }
+  });
+
+  // Called by the frontend right after Razorpay's Checkout widget reports
+  // success. We independently verify the signature server-side — this is
+  // the step that actually proves the payment is real, not spoofed by
+  // someone just calling this endpoint directly with fake IDs.
+  app.post("/api/checkout/verify", requireAuth, async (req, res) => {
+    try {
+      const {
+        orderId,
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+      } = req.body;
+
+      if (
+        !orderId ||
+        !razorpay_order_id ||
+        !razorpay_payment_id ||
+        !razorpay_signature
+      ) {
+        return res.status(400).json({ error: "Missing payment verification fields" });
+      }
+
+      const order = await storage.getOrderById(orderId);
+      if (!order || order.userId !== req.session.userId) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (order.razorpayOrderId !== razorpay_order_id) {
+        return res.status(400).json({ error: "Order/payment mismatch" });
+      }
+      if (!process.env.RAZORPAY_KEY_SECRET) {
+        return res.status(500).json({ error: "Payments are not configured on the server." });
+      }
+
+      const expectedSignature = crypto
+        .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest("hex");
+
+      if (expectedSignature !== razorpay_signature) {
+        return res.status(400).json({ error: "Payment verification failed" });
+      }
+
+      const updated = await storage.markOrderPaid(order.id, razorpay_payment_id);
+      res.json(updated);
+    } catch (error) {
+      console.error("Verify payment error:", error);
+      res.status(500).json({ error: "Failed to verify payment" });
+    }
+  });
+
+  // Safety net: Razorpay calls this directly if configured in the
+  // dashboard (Settings → Webhooks), independent of whether the browser
+  // successfully called /verify (e.g. if the tab was closed mid-payment).
+  // Uses the raw request body for signature verification, per Razorpay's
+  // requirements — see server/index.ts, which captures req.rawBody.
+  app.post("/api/webhooks/razorpay", async (req, res) => {
+    try {
+      const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET;
+      if (!webhookSecret) {
+        console.warn("RAZORPAY_WEBHOOK_SECRET not set — ignoring webhook.");
+        return res.status(200).send("ok");
+      }
+
+      const signature = req.headers["x-razorpay-signature"];
+      if (typeof signature !== "string" || !req.rawBody) {
+        return res.status(400).send("Missing signature or body");
+      }
+
+      const expected = crypto
+        .createHmac("sha256", webhookSecret)
+        .update(req.rawBody as Buffer)
+        .digest("hex");
+
+      if (expected !== signature) {
+        return res.status(400).send("Invalid signature");
+      }
+
+      const event = req.body;
+      if (event.event === "payment.captured") {
+        const payment = event.payload?.payment?.entity;
+        const razorpayOrderId = payment?.order_id;
+        const razorpayPaymentId = payment?.id;
+
+        if (razorpayOrderId) {
+          const order = await storage.getOrderByRazorpayOrderId(razorpayOrderId);
+          if (order && order.status === "pending") {
+            await storage.markOrderPaid(order.id, razorpayPaymentId);
+          }
+        }
+      }
+
+      res.status(200).send("ok");
+    } catch (error) {
+      console.error("Razorpay webhook error:", error);
+      res.status(500).send("Webhook processing failed");
     }
   });
 

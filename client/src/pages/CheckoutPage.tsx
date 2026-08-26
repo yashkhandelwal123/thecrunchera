@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
+import { openRazorpayCheckout } from "@/lib/razorpay";
 import { Loader2 } from "lucide-react";
 
 interface ShippingForm {
@@ -46,35 +47,93 @@ export default function CheckoutPage() {
       setForm((prev) => ({ ...prev, [field]: e.target.value }));
     };
 
+  const [paymentStatus, setPaymentStatus] = useState<
+    "idle" | "creating-order" | "awaiting-payment" | "verifying"
+  >("idle");
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (cart.items.length === 0) return;
 
     setIsSubmitting(true);
+    setPaymentStatus("creating-order");
     try {
-      const res = await apiRequest("POST", "/api/orders", {
+      // Step 1: create the order (status: pending) with the shipping details.
+      const orderRes = await apiRequest("POST", "/api/orders", {
         items: cart.items.map((item) => ({
           productId: item.product.id,
           quantity: item.quantity,
         })),
         ...form,
       });
-      const order = await res.json();
+      const order = await orderRes.json();
 
-      clearCart();
-      toast({
-        title: "Order placed!",
-        description: `Your order for ₹${order.total} has been received.`,
+      // Step 2: create a matching Razorpay order for it.
+      const rzpOrderRes = await apiRequest(
+        "POST",
+        "/api/checkout/create-razorpay-order",
+        { orderId: order.id },
+      );
+      const rzpOrder = await rzpOrderRes.json();
+
+      setPaymentStatus("awaiting-payment");
+
+      // Step 3: open Razorpay's Checkout widget for the customer to pay.
+      await openRazorpayCheckout({
+        keyId: rzpOrder.keyId,
+        amount: rzpOrder.amount,
+        currency: rzpOrder.currency,
+        razorpayOrderId: rzpOrder.razorpayOrderId,
+        customerName: form.shippingName,
+        customerEmail: user?.email,
+        customerPhone: form.shippingPhone,
+        onSuccess: async (response) => {
+          setPaymentStatus("verifying");
+          try {
+            // Step 4: verify the payment server-side, then we're done.
+            await apiRequest("POST", "/api/checkout/verify", {
+              orderId: order.id,
+              ...response,
+            });
+            clearCart();
+            toast({
+              title: "Payment successful!",
+              description: `Your order for ₹${order.total} is confirmed.`,
+            });
+            navigate(`/orders/${order.id}`);
+          } catch (error) {
+            toast({
+              title: "Payment verification failed",
+              description:
+                "Your payment may have gone through, but we couldn't confirm it. Please check your orders or contact us.",
+              variant: "destructive",
+            });
+          } finally {
+            setIsSubmitting(false);
+            setPaymentStatus("idle");
+          }
+        },
+        onDismiss: () => {
+          // Customer closed the payment widget without paying — the order
+          // stays pending, they can retry from the order detail page.
+          setIsSubmitting(false);
+          setPaymentStatus("idle");
+          toast({
+            title: "Payment cancelled",
+            description:
+              "Your order is saved and still pending. You can complete payment anytime from your orders.",
+          });
+          navigate(`/orders/${order.id}`);
+        },
       });
-      navigate(`/orders/${order.id}`);
     } catch (error) {
       toast({
         title: "Something went wrong",
         description: "We couldn't place your order. Please try again.",
         variant: "destructive",
       });
-    } finally {
       setIsSubmitting(false);
+      setPaymentStatus("idle");
     }
   };
 
@@ -212,14 +271,26 @@ export default function CheckoutPage() {
               disabled={isSubmitting}
               data-testid="button-place-order"
             >
-              {isSubmitting ? (
+              {paymentStatus === "creating-order" && (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Placing order...
+                  Preparing your order...
                 </>
-              ) : (
-                `Place Order — ₹${cart.total.toFixed(2)}`
               )}
+              {paymentStatus === "awaiting-payment" && (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Waiting for payment...
+                </>
+              )}
+              {paymentStatus === "verifying" && (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Confirming payment...
+                </>
+              )}
+              {paymentStatus === "idle" &&
+                `Pay ₹${cart.total.toFixed(2)}`}
             </Button>
           </form>
 
@@ -253,8 +324,9 @@ export default function CheckoutPage() {
                 </span>
               </div>
               <p className="text-xs text-muted-foreground mt-4">
-                Payment is collected in the next step. Your order will be
-                marked pending until payment is confirmed.
+                You'll be asked to pay via Razorpay (UPI, cards, netbanking)
+                after clicking "Pay". Your order is created first and marked
+                paid automatically once payment is confirmed.
               </p>
             </Card>
           </div>

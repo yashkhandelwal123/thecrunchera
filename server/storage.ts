@@ -45,6 +45,7 @@ export interface IStorage {
   createOrder(order: InsertOrder, items: Omit<InsertOrderItem, "orderId">[]): Promise<Order>;
   getOrderById(id: string): Promise<Order | undefined>;
   getOrdersByUserId(userId: string): Promise<Order[]>;
+  getOrderByRazorpayOrderId(razorpayOrderId: string): Promise<Order | undefined>;
   getOrderItems(orderId: string): Promise<OrderItem[]>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
   setOrderRazorpayOrderId(id: string, razorpayOrderId: string): Promise<Order | undefined>;
@@ -231,6 +232,12 @@ export class MemStorage implements IStorage {
     return Array.from(this.orders.values())
       .filter((order) => order.userId === userId)
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  }
+
+  async getOrderByRazorpayOrderId(razorpayOrderId: string): Promise<Order | undefined> {
+    return Array.from(this.orders.values()).find(
+      (order) => order.razorpayOrderId === razorpayOrderId,
+    );
   }
 
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
@@ -450,6 +457,15 @@ export class DbStorage implements IStorage {
     return results.sort(
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     );
+  }
+
+  async getOrderByRazorpayOrderId(razorpayOrderId: string): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db
+      .select()
+      .from(orders)
+      .where(eq(orders.razorpayOrderId, razorpayOrderId));
+    return order;
   }
 
   async getOrderItems(orderId: string): Promise<OrderItem[]> {
