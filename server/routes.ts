@@ -141,6 +141,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
+  // Restricts a route to whichever Google account(s) are listed in
+  // ADMIN_EMAILS (comma-separated). Anyone else — including other
+  // signed-in customers — gets a 403, even though they're authenticated.
+  async function requireAdmin(
+    req: import("express").Request,
+    res: import("express").Response,
+    next: import("express").NextFunction,
+  ) {
+    if (!req.session.userId) {
+      return res.status(401).json({ error: "Sign in required" });
+    }
+    const adminEmails = (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (adminEmails.length === 0) {
+      return res.status(500).json({ error: "Admin access is not configured on the server." });
+    }
+
+    const user = await storage.getUserById(req.session.userId);
+    if (!user || !adminEmails.includes(user.email.toLowerCase())) {
+      return res.status(403).json({ error: "Admin access required" });
+    }
+    next();
+  }
+
   // Creates an order from the cart. The server re-looks-up each product's
   // real price rather than trusting whatever the client sends — this is
   // the authoritative source of truth for what gets charged.
@@ -327,7 +354,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Payment verification failed" });
       }
 
+      const wasAlreadyPaid = order.status === "paid";
       const updated = await storage.markOrderPaid(order.id, razorpay_payment_id);
+
+      if (!wasAlreadyPaid && updated) {
+        const items = await storage.getOrderItems(order.id);
+        const { notifyNewOrder } = await import("./notifications");
+        notifyNewOrder(updated, items).catch((err) =>
+          console.error("Order notification failed:", err),
+        );
+      }
+
       res.json(updated);
     } catch (error) {
       console.error("Verify payment error:", error);
@@ -371,7 +408,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         if (razorpayOrderId) {
           const order = await storage.getOrderByRazorpayOrderId(razorpayOrderId);
           if (order && order.status === "pending") {
-            await storage.markOrderPaid(order.id, razorpayPaymentId);
+            const updated = await storage.markOrderPaid(order.id, razorpayPaymentId);
+            if (updated) {
+              const items = await storage.getOrderItems(order.id);
+              const { notifyNewOrder } = await import("./notifications");
+              notifyNewOrder(updated, items).catch((err) =>
+                console.error("Order notification failed:", err),
+              );
+            }
           }
         }
       }
@@ -380,6 +424,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Razorpay webhook error:", error);
       res.status(500).send("Webhook processing failed");
+    }
+  });
+
+  // Admin: list every order across all customers, newest first, with
+  // basic customer info attached so you don't have to cross-reference
+  // the users table by hand.
+  app.get("/api/admin/orders", requireAdmin, async (req, res) => {
+    try {
+      const allOrders = await storage.getAllOrders();
+      const ordersWithCustomer = await Promise.all(
+        allOrders.map(async (order) => {
+          const customer = await storage.getUserById(order.userId);
+          return {
+            ...order,
+            customerName: customer?.name ?? "Unknown",
+            customerEmail: customer?.email ?? "Unknown",
+          };
+        }),
+      );
+      res.json(ordersWithCustomer);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch orders" });
+    }
+  });
+
+  // Admin: single order detail, including line items — same shape as the
+  // customer-facing GET /api/orders/:id, just without the ownership check.
+  app.get("/api/admin/orders/:id", requireAdmin, async (req, res) => {
+    try {
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      const [items, customer] = await Promise.all([
+        storage.getOrderItems(order.id),
+        storage.getUserById(order.userId),
+      ]);
+      res.json({
+        ...order,
+        items,
+        customerName: customer?.name ?? "Unknown",
+        customerEmail: customer?.email ?? "Unknown",
+      });
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch order" });
+    }
+  });
+
+  // Admin: update an order's fulfillment status (e.g. mark as shipped).
+  app.patch("/api/admin/orders/:id/status", requireAdmin, async (req, res) => {
+    try {
+      const { status } = req.body;
+      const allowed = ["pending", "paid", "shipped", "delivered", "cancelled"];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({ error: `Status must be one of: ${allowed.join(", ")}` });
+      }
+      const updated = await storage.updateOrderStatus(req.params.id, status);
+      if (!updated) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      res.json(updated);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to update order status" });
     }
   });
 
