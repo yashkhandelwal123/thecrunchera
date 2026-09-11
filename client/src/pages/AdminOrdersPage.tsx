@@ -14,7 +14,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw } from "lucide-react";
+import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw, PackageCheck } from "lucide-react";
 
 interface AdminOrder {
   id: string;
@@ -34,6 +34,7 @@ interface AdminOrder {
   courierName: string | null;
   trackingUrl: string | null;
   shippingStatus: string | null;
+  shiprocketShipmentId: string | null;
 }
 
 const STATUS_OPTIONS = ["pending", "paid", "shipped", "delivered", "cancelled"];
@@ -122,7 +123,7 @@ export default function AdminOrdersPage() {
   const submitShipment = async (orderId: string) => {
     setIsShipping(true);
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/ship`, {
+      const res = await fetch(`/api/admin/orders/${orderId}/create-shipment`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -135,7 +136,7 @@ export default function AdminOrdersPage() {
       setShippingOrderId(null);
       toast({
         title: "Shipment created",
-        description: `${data.courierName} — AWB ${data.awbCode}`,
+        description: "No courier assigned yet, no charge made. Assign a courier when you're ready to actually ship.",
       });
     } catch (err) {
       toast({
@@ -145,6 +146,34 @@ export default function AdminOrdersPage() {
       });
     } finally {
       setIsShipping(false);
+    }
+  };
+
+  const [assigningId, setAssigningId] = useState<string | null>(null);
+
+  const assignCourier = async (orderId: string) => {
+    setAssigningId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/assign-courier`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to assign courier");
+
+      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
+      toast({
+        title: "Courier assigned",
+        description: `${data.courierName} — AWB ${data.awbCode}`,
+      });
+    } catch (err) {
+      toast({
+        title: "Couldn't assign courier",
+        description: err instanceof Error ? err.message : "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setAssigningId(null);
     }
   };
 
@@ -265,7 +294,7 @@ export default function AdminOrdersPage() {
                       </SelectContent>
                     </Select>
 
-                    {order.status === "paid" && !order.awbCode && (
+                    {order.status === "paid" && !order.shiprocketShipmentId && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -273,8 +302,29 @@ export default function AdminOrdersPage() {
                         data-testid={`button-ship-${order.id}`}
                       >
                         <Truck className="w-4 h-4 mr-1" />
-                        Ship Now
+                        Create Shipment (free)
                       </Button>
+                    )}
+
+                    {order.shiprocketShipmentId && !order.awbCode && (
+                      <div className="text-xs text-right space-y-1.5">
+                        <div className="text-muted-foreground">
+                          Shipment created, no courier yet
+                        </div>
+                        <Button
+                          size="sm"
+                          onClick={() => assignCourier(order.id)}
+                          disabled={assigningId === order.id}
+                          data-testid={`button-assign-courier-${order.id}`}
+                        >
+                          {assigningId === order.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          ) : (
+                            <PackageCheck className="w-4 h-4 mr-1" />
+                          )}
+                          Assign Courier (billable)
+                        </Button>
+                      </div>
                     )}
 
                     {order.awbCode && (

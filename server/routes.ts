@@ -493,7 +493,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Admin: create a Shiprocket shipment for a paid order and assign a
   // courier, in one action ("Ship Now"). Weight/dimensions are supplied by
   // the admin per-order since actual packed weight varies by order size.
-  app.post("/api/admin/orders/:id/ship", requireAdmin, async (req, res) => {
+  // Admin, step 1 (free): creates the order + shipment record in
+  // Shiprocket, but does NOT assign a courier yet. Shiprocket doesn't have
+  // a sandbox/test mode — assigning a courier (step 2) is what actually
+  // reserves a slot and typically deducts from your wallet balance, so
+  // this step is kept separate and free to let you inspect/verify before
+  // committing to that cost.
+  app.post("/api/admin/orders/:id/create-shipment", requireAdmin, async (req, res) => {
     try {
       const { weightKg, lengthCm, breadthCm, heightCm } = req.body;
       if (!weightKg || !lengthCm || !breadthCm || !heightCm) {
@@ -511,13 +517,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: `Can only ship paid orders (this order is ${order.status})`,
         });
       }
+      if (order.shiprocketShipmentId) {
+        return res.status(400).json({ error: "A shipment already exists for this order" });
+      }
 
-      const [items, customer] = await Promise.all([
-        storage.getOrderItems(order.id),
-        storage.getUserById(order.userId),
-      ]);
+      const [items] = await Promise.all([storage.getOrderItems(order.id)]);
 
-      const { createShiprocketOrder, assignAWB } = await import("./shiprocket");
+      const { createShiprocketOrder } = await import("./shiprocket");
 
       const { shiprocketOrderId, shipmentId } = await createShiprocketOrder({
         orderId: order.id,
@@ -541,23 +547,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         heightCm: parseFloat(heightCm),
       });
 
-      const { awbCode, courierName } = await assignAWB(shipmentId);
-
       const updated = await storage.updateOrderShipping(order.id, {
         shiprocketOrderId,
         shiprocketShipmentId: shipmentId,
+        shippingStatus: "Shipment created — courier not yet assigned",
+      });
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Shiprocket create-shipment error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to create shipment",
+      });
+    }
+  });
+
+  // Admin, step 2 (billable): assigns an actual courier to an
+  // already-created shipment. This is the step that reserves a real
+  // courier slot — typically deducts from your Shiprocket wallet balance.
+  // Only call this when you're actually ready to ship the package.
+  app.post("/api/admin/orders/:id/assign-courier", requireAdmin, async (req, res) => {
+    try {
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (!order.shiprocketShipmentId) {
+        return res.status(400).json({
+          error: "No shipment exists yet for this order — create one first",
+        });
+      }
+      if (order.awbCode) {
+        return res.status(400).json({ error: "A courier is already assigned to this order" });
+      }
+
+      const { assignAWB } = await import("./shiprocket");
+      const { awbCode, courierName } = await assignAWB(order.shiprocketShipmentId);
+
+      const updated = await storage.updateOrderShipping(order.id, {
         awbCode,
         courierName,
         trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
-        shippingStatus: "Shipment created",
+        shippingStatus: "Courier assigned",
       });
       await storage.updateOrderStatus(order.id, "shipped");
 
       res.json(updated);
     } catch (error) {
-      console.error("Shiprocket ship error:", error);
+      console.error("Shiprocket assign-courier error:", error);
       res.status(500).json({
-        error: error instanceof Error ? error.message : "Failed to create shipment",
+        error: error instanceof Error ? error.message : "Failed to assign courier",
       });
     }
   });
