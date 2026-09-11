@@ -9,7 +9,7 @@ import { setupVite, serveStatic, log } from "./vite";
 
 
 const app = express();
-
+app.set("trust proxy", 1);
 // Serve product/hero images referenced by plain string paths (e.g. from
 // storage.ts) — the @assets Vite alias only resolves JS import statements,
 // not runtime URLs the browser requests directly.
