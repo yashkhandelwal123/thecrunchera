@@ -31,6 +31,10 @@ interface OrderDetail {
   shippingPincode: string;
   createdAt: string;
   items: OrderItem[];
+  awbCode: string | null;
+  courierName: string | null;
+  trackingUrl: string | null;
+  shippingStatus: string | null;
 }
 
 export default function OrderDetailPage() {
@@ -202,6 +206,38 @@ export default function OrderDetailPage() {
             <span className="text-primary">₹{order.total}</span>
           </div>
         </Card>
+
+        {order.awbCode && (
+          <Card className="p-6 space-y-1 text-sm mb-6">
+            <h2 className="font-heading font-bold text-lg mb-2">
+              Shipment Tracking
+            </h2>
+            <p>
+              <span className="text-muted-foreground">Courier: </span>
+              {order.courierName}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Tracking ID: </span>
+              {order.awbCode}
+            </p>
+            {order.shippingStatus && (
+              <p>
+                <span className="text-muted-foreground">Status: </span>
+                {order.shippingStatus}
+              </p>
+            )}
+            {order.trackingUrl && (
+              <a
+                href={order.trackingUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary hover:underline inline-block mt-1"
+              >
+                Track shipment →
+              </a>
+            )}
+          </Card>
+        )}
 
         <Card className="p-6 space-y-1 text-sm">
           <h2 className="font-heading font-bold text-lg mb-2">

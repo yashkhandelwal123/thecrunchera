@@ -51,6 +51,17 @@ export interface IStorage {
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
   setOrderRazorpayOrderId(id: string, razorpayOrderId: string): Promise<Order | undefined>;
   markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined>;
+  updateOrderShipping(
+    id: string,
+    shipping: {
+      shiprocketOrderId?: string;
+      shiprocketShipmentId?: string;
+      awbCode?: string;
+      courierName?: string;
+      trackingUrl?: string;
+      shippingStatus?: string;
+    },
+  ): Promise<Order | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -213,6 +224,12 @@ export class MemStorage implements IStorage {
       shippingAddressLine2: insertOrder.shippingAddressLine2 ?? null,
       razorpayOrderId: null,
       razorpayPaymentId: null,
+      shiprocketOrderId: null,
+      shiprocketShipmentId: null,
+      awbCode: null,
+      courierName: null,
+      trackingUrl: null,
+      shippingStatus: null,
       createdAt: new Date(),
     };
     this.orders.set(id, order);
@@ -276,6 +293,24 @@ export class MemStorage implements IStorage {
     const order = this.orders.get(id);
     if (!order) return undefined;
     const updated = { ...order, status: "paid", razorpayPaymentId };
+    this.orders.set(id, updated);
+    return updated;
+  }
+
+  async updateOrderShipping(
+    id: string,
+    shipping: {
+      shiprocketOrderId?: string;
+      shiprocketShipmentId?: string;
+      awbCode?: string;
+      courierName?: string;
+      trackingUrl?: string;
+      shippingStatus?: string;
+    },
+  ): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order) return undefined;
+    const updated = { ...order, ...shipping };
     this.orders.set(id, updated);
     return updated;
   }
@@ -519,6 +554,26 @@ export class DbStorage implements IStorage {
     const [order] = await db
       .update(orders)
       .set({ status: "paid", razorpayPaymentId })
+      .where(eq(orders.id, id))
+      .returning();
+    return order;
+  }
+
+  async updateOrderShipping(
+    id: string,
+    shipping: {
+      shiprocketOrderId?: string;
+      shiprocketShipmentId?: string;
+      awbCode?: string;
+      courierName?: string;
+      trackingUrl?: string;
+      shippingStatus?: string;
+    },
+  ): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db
+      .update(orders)
+      .set(shipping)
       .where(eq(orders.id, id))
       .returning();
     return order;

@@ -490,6 +490,102 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Admin: create a Shiprocket shipment for a paid order and assign a
+  // courier, in one action ("Ship Now"). Weight/dimensions are supplied by
+  // the admin per-order since actual packed weight varies by order size.
+  app.post("/api/admin/orders/:id/ship", requireAdmin, async (req, res) => {
+    try {
+      const { weightKg, lengthCm, breadthCm, heightCm } = req.body;
+      if (!weightKg || !lengthCm || !breadthCm || !heightCm) {
+        return res.status(400).json({
+          error: "weightKg, lengthCm, breadthCm, and heightCm are all required",
+        });
+      }
+
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+      if (order.status !== "paid") {
+        return res.status(400).json({
+          error: `Can only ship paid orders (this order is ${order.status})`,
+        });
+      }
+
+      const [items, customer] = await Promise.all([
+        storage.getOrderItems(order.id),
+        storage.getUserById(order.userId),
+      ]);
+
+      const { createShiprocketOrder, assignAWB } = await import("./shiprocket");
+
+      const { shiprocketOrderId, shipmentId } = await createShiprocketOrder({
+        orderId: order.id,
+        subtotal: parseFloat(order.subtotal),
+        customerName: order.shippingName,
+        customerPhone: order.shippingPhone,
+        addressLine1: order.shippingAddressLine1,
+        addressLine2: order.shippingAddressLine2,
+        city: order.shippingCity,
+        state: order.shippingState,
+        pincode: order.shippingPincode,
+        items: items.map((item) => ({
+          name: item.productName,
+          sku: item.productId,
+          units: item.quantity,
+          sellingPrice: parseFloat(item.unitPrice),
+        })),
+        weightKg: parseFloat(weightKg),
+        lengthCm: parseFloat(lengthCm),
+        breadthCm: parseFloat(breadthCm),
+        heightCm: parseFloat(heightCm),
+      });
+
+      const { awbCode, courierName } = await assignAWB(shipmentId);
+
+      const updated = await storage.updateOrderShipping(order.id, {
+        shiprocketOrderId,
+        shiprocketShipmentId: shipmentId,
+        awbCode,
+        courierName,
+        trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
+        shippingStatus: "Shipment created",
+      });
+      await storage.updateOrderStatus(order.id, "shipped");
+
+      res.json(updated);
+    } catch (error) {
+      console.error("Shiprocket ship error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to create shipment",
+      });
+    }
+  });
+
+  // Admin: manually refresh the courier's current tracking status for an
+  // already-shipped order.
+  app.post("/api/admin/orders/:id/refresh-tracking", requireAdmin, async (req, res) => {
+    try {
+      const order = await storage.getOrderById(req.params.id);
+      if (!order || !order.awbCode) {
+        return res.status(400).json({ error: "This order has no shipment yet" });
+      }
+
+      const { trackShipment } = await import("./shiprocket");
+      const { status } = await trackShipment(order.awbCode);
+
+      const updated = await storage.updateOrderShipping(order.id, {
+        shippingStatus: status,
+      });
+      res.json(updated);
+    } catch (error) {
+      console.error("Shiprocket tracking refresh error:", error);
+      res.status(500).json({
+        error: error instanceof Error ? error.message : "Failed to refresh tracking",
+      });
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;

@@ -87,6 +87,14 @@ export const orders = pgTable("orders", {
   razorpayOrderId: text("razorpay_order_id"),
   razorpayPaymentId: text("razorpay_payment_id"),
 
+  // Populated once a shipment is created via Shiprocket (admin "Ship Now")
+  shiprocketOrderId: text("shiprocket_order_id"),
+  shiprocketShipmentId: text("shiprocket_shipment_id"),
+  awbCode: text("awb_code"),
+  courierName: text("courier_name"),
+  trackingUrl: text("tracking_url"),
+  shippingStatus: text("shipping_status"), // raw courier status, e.g. "In Transit"
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -95,6 +103,12 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   status: true,
   razorpayOrderId: true,
   razorpayPaymentId: true,
+  shiprocketOrderId: true,
+  shiprocketShipmentId: true,
+  awbCode: true,
+  courierName: true,
+  trackingUrl: true,
+  shippingStatus: true,
   createdAt: true,
 });
 

@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -11,7 +14,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw } from "lucide-react";
 
 interface AdminOrder {
   id: string;
@@ -27,6 +30,10 @@ interface AdminOrder {
   shippingCity: string;
   shippingState: string;
   shippingPincode: string;
+  awbCode: string | null;
+  courierName: string | null;
+  trackingUrl: string | null;
+  shippingStatus: string | null;
 }
 
 const STATUS_OPTIONS = ["pending", "paid", "shipped", "delivered", "cancelled"];
@@ -94,6 +101,71 @@ export default function AdminOrdersPage() {
         title: "Failed to update status",
         variant: "destructive",
       });
+    }
+  };
+
+  const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
+  const [shipForm, setShipForm] = useState({
+    weightKg: "0.1",
+    lengthCm: "15",
+    breadthCm: "10",
+    heightCm: "5",
+  });
+  const [isShipping, setIsShipping] = useState(false);
+  const [refreshingId, setRefreshingId] = useState<string | null>(null);
+
+  const openShipForm = (orderId: string) => {
+    setShippingOrderId(orderId);
+    setShipForm({ weightKg: "0.1", lengthCm: "15", breadthCm: "10", heightCm: "5" });
+  };
+
+  const submitShipment = async (orderId: string) => {
+    setIsShipping(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/ship`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(shipForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to create shipment");
+
+      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
+      setShippingOrderId(null);
+      toast({
+        title: "Shipment created",
+        description: `${data.courierName} — AWB ${data.awbCode}`,
+      });
+    } catch (err) {
+      toast({
+        title: "Couldn't create shipment",
+        description: err instanceof Error ? err.message : "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsShipping(false);
+    }
+  };
+
+  const refreshTracking = async (orderId: string) => {
+    setRefreshingId(orderId);
+    try {
+      const res = await fetch(`/api/admin/orders/${orderId}/refresh-tracking`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to refresh");
+      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
+    } catch (err) {
+      toast({
+        title: "Couldn't refresh tracking",
+        description: err instanceof Error ? err.message : "Something went wrong.",
+        variant: "destructive",
+      });
+    } finally {
+      setRefreshingId(null);
     }
   };
 
@@ -192,8 +264,132 @@ export default function AdminOrdersPage() {
                         ))}
                       </SelectContent>
                     </Select>
+
+                    {order.status === "paid" && !order.awbCode && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openShipForm(order.id)}
+                        data-testid={`button-ship-${order.id}`}
+                      >
+                        <Truck className="w-4 h-4 mr-1" />
+                        Ship Now
+                      </Button>
+                    )}
+
+                    {order.awbCode && (
+                      <div className="text-xs text-right space-y-1">
+                        <div className="font-medium">{order.courierName}</div>
+                        <div className="text-muted-foreground">AWB: {order.awbCode}</div>
+                        {order.shippingStatus && (
+                          <div className="text-muted-foreground">{order.shippingStatus}</div>
+                        )}
+                        <div className="flex items-center gap-2 justify-end">
+                          {order.trackingUrl && (
+                            <a
+                              href={order.trackingUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-primary inline-flex items-center gap-1 hover:underline"
+                            >
+                              Track <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                          <button
+                            onClick={() => refreshTracking(order.id)}
+                            disabled={refreshingId === order.id}
+                            className="text-muted-foreground hover:text-foreground"
+                            data-testid={`button-refresh-tracking-${order.id}`}
+                          >
+                            <RefreshCw
+                              className={`w-3.5 h-3.5 ${refreshingId === order.id ? "animate-spin" : ""}`}
+                            />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
+
+                {shippingOrderId === order.id && (
+                  <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
+                    <div>
+                      <Label htmlFor={`weight-${order.id}`} className="text-xs">
+                        Weight (kg)
+                      </Label>
+                      <Input
+                        id={`weight-${order.id}`}
+                        type="number"
+                        step="0.01"
+                        value={shipForm.weightKg}
+                        onChange={(e) =>
+                          setShipForm((f) => ({ ...f, weightKg: e.target.value }))
+                        }
+                        data-testid={`input-weight-${order.id}`}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`length-${order.id}`} className="text-xs">
+                        Length (cm)
+                      </Label>
+                      <Input
+                        id={`length-${order.id}`}
+                        type="number"
+                        value={shipForm.lengthCm}
+                        onChange={(e) =>
+                          setShipForm((f) => ({ ...f, lengthCm: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`breadth-${order.id}`} className="text-xs">
+                        Breadth (cm)
+                      </Label>
+                      <Input
+                        id={`breadth-${order.id}`}
+                        type="number"
+                        value={shipForm.breadthCm}
+                        onChange={(e) =>
+                          setShipForm((f) => ({ ...f, breadthCm: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`height-${order.id}`} className="text-xs">
+                        Height (cm)
+                      </Label>
+                      <Input
+                        id={`height-${order.id}`}
+                        type="number"
+                        value={shipForm.heightCm}
+                        onChange={(e) =>
+                          setShipForm((f) => ({ ...f, heightCm: e.target.value }))
+                        }
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => submitShipment(order.id)}
+                        disabled={isShipping}
+                        data-testid={`button-confirm-ship-${order.id}`}
+                      >
+                        {isShipping ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          "Confirm"
+                        )}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShippingOrderId(null)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </Card>
             ))}
           </div>
