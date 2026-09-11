@@ -19,11 +19,10 @@ import OrderDetailPage from "@/pages/OrderDetailPage";
 import AdminOrdersPage from "@/pages/AdminOrdersPage";
 import NotFound from "@/pages/not-found";
 import ManufacturingDetails from "@/pages/ManufacturingDetails";
-import JalwaInvitation from "./pages/Ridhav";
+// import JalwaInvitation from "./pages/Ridhav";
 
 // Routes that should render full-bleed, with no site chrome
-const NO_CHROME_ROUTES = ["/Ridhav"];
-
+const NO_CHROME_ROUTES: string[] = [];
 function Router() {
   const [location] = useLocation();
   const hideChrome = NO_CHROME_ROUTES.includes(location);
@@ -50,7 +49,7 @@ function Router() {
         <Route path="/orders" component={OrdersPage} />
         <Route path="/orders/:id" component={OrderDetailPage} />
         <Route path="/admin/orders" component={AdminOrdersPage} />
-        <Route path="/Ridhav" component={JalwaInvitation} />
+        {/* <Route path="/Ridhav" component={JalwaInvitation} /> */}
         <Route component={NotFound} />
       </Switch>
       {!hideChrome && <Footer />}
