@@ -1,5 +1,5 @@
 import { Link } from "wouter";
-import { Leaf, Facebook, Instagram, Twitter } from "lucide-react";
+import { Leaf } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useState } from "react";
@@ -54,7 +54,7 @@ export default function Footer() {
   return (
     <footer className="bg-card border-t mt-20">
       <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
               <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
@@ -65,17 +65,6 @@ export default function Footer() {
             <p className="text-sm text-muted-foreground mb-4">
               Wholesome, delicious, and Crunch-Approved healthy food for families who care.
             </p>
-            <div className="flex gap-2">
-              <Button variant="ghost" size="icon" className="rounded-full" data-testid="link-facebook">
-                <Facebook className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" data-testid="link-instagram">
-                <Instagram className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" className="rounded-full" data-testid="link-twitter">
-                <Twitter className="w-4 h-4" />
-              </Button>
-            </div>
           </div>
 
           <div>
@@ -101,27 +90,6 @@ export default function Footer() {
                     Contact Us
                   </Button>
                 </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-heading font-semibold text-lg mb-4">Resources</h3>
-            <ul className="space-y-2">
-              <li>
-                <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">
-                  Nutrition Guide
-                </Button>
-              </li>
-              <li>
-                <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">
-                  Recipes
-                </Button>
-              </li>
-              <li>
-                <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">
-                  FAQs
-                </Button>
               </li>
             </ul>
           </div>
@@ -155,15 +123,19 @@ export default function Footer() {
 
         <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2025 The Crunch Era. All rights reserved.
+            © {new Date().getFullYear()} The Crunch Era. All rights reserved.
           </p>
           <div className="flex gap-4 text-sm text-muted-foreground">
-            <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">
-              Privacy Policy
-            </Button>
-            <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground">
-              Terms of Service
-            </Button>
+            <Link href="/privacy-policy">
+              <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-privacy">
+                Privacy Policy
+              </Button>
+            </Link>
+            <Link href="/terms-of-service">
+              <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-terms">
+                Terms of Service
+              </Button>
+            </Link>
           </div>
         </div>
       </div>

@@ -17,6 +17,8 @@ import CheckoutPage from "@/pages/CheckoutPage";
 import OrdersPage from "@/pages/OrdersPage";
 import OrderDetailPage from "@/pages/OrderDetailPage";
 import AdminOrdersPage from "@/pages/AdminOrdersPage";
+import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import NotFound from "@/pages/not-found";
 import ManufacturingDetails from "@/pages/ManufacturingDetails";
 // import JalwaInvitation from "./pages/Ridhav";
@@ -49,6 +51,8 @@ function Router() {
         <Route path="/orders" component={OrdersPage} />
         <Route path="/orders/:id" component={OrderDetailPage} />
         <Route path="/admin/orders" component={AdminOrdersPage} />
+        <Route path="/privacy-policy" component={PrivacyPolicyPage} />
+        <Route path="/terms-of-service" component={TermsOfServicePage} />
         {/* <Route path="/Ridhav" component={JalwaInvitation} /> */}
         <Route component={NotFound} />
       </Switch>

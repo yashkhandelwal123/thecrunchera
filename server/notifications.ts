@@ -57,7 +57,7 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
     await resend.emails.send({
       // Resend's shared test domain — works immediately with no DNS setup.
       // Swap to a verified domain address once you set one up in Resend.
-      from: "The Crunch Era <onboarding@resend.dev>",
+      from: "The Crunch Era <orders@thecrunchera.com>",
       to: adminEmail,
       subject: `New order — ₹${order.total} (#${order.id.slice(0, 8)})`,
       html: `

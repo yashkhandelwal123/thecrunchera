@@ -78,6 +78,7 @@ export interface CreateShiprocketOrderParams {
   orderId: string; // our own order id, used as Shiprocket's order_id
   subtotal: number;
   customerName: string;
+  customerEmail: string;
   customerPhone: string;
   addressLine1: string;
   addressLine2?: string | null;
@@ -123,7 +124,7 @@ export async function createShiprocketOrder(params: CreateShiprocketOrderParams)
       billing_pincode: params.pincode,
       billing_state: params.state,
       billing_country: "India",
-      billing_email: "orders@thecrunchera.com",
+      billing_email: params.customerEmail,
       billing_phone: params.customerPhone,
       shipping_is_billing: true,
       order_items: params.items.map((item) => ({

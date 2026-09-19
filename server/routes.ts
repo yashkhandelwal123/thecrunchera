@@ -521,7 +521,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "A shipment already exists for this order" });
       }
 
-      const [items] = await Promise.all([storage.getOrderItems(order.id)]);
+      const [items, customer] = await Promise.all([
+        storage.getOrderItems(order.id),
+        storage.getUserById(order.userId),
+      ]);
 
       const { createShiprocketOrder } = await import("./shiprocket");
 
@@ -529,6 +532,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         orderId: order.id,
         subtotal: parseFloat(order.subtotal),
         customerName: order.shippingName,
+        customerEmail: customer?.email || "orders@thecrunchera.com",
         customerPhone: order.shippingPhone,
         addressLine1: order.shippingAddressLine1,
         addressLine2: order.shippingAddressLine2,
