@@ -35,7 +35,7 @@ export default defineConfig({
   },
 
   // ✅ FIX 2: make assets load correctly in production
-  base: "./",
+  base: "/",
 
   server: {
     fs: {
