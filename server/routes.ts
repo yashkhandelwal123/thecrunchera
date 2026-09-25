@@ -10,6 +10,118 @@ const googleClient = process.env.GOOGLE_CLIENT_ID
   : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Dynamic XML sitemap for search engines
+  app.get("/sitemap.xml", async (_req, res) => {
+    try {
+      const products = await storage.getAllProducts();
+
+      // If you have a storage method for published blog posts,
+      // use it here. For now, this can be added once that method exists.
+      const blogs: any[] = [];
+
+      const baseUrl = "https://thecrunchera.com";
+      const today = new Date().toISOString().split("T")[0];
+
+      const escapeXml = (value: string) =>
+        value
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&apos;");
+
+      const formatDate = (date: unknown) => {
+        if (!date) return today;
+
+        const parsed = new Date(date as string | number | Date);
+
+        if (Number.isNaN(parsed.getTime())) {
+          return today;
+        }
+
+        return parsed.toISOString().split("T")[0];
+      };
+
+      const productUrls = products
+        .map((product) => {
+          // Adjust this if your product object uses a different field.
+          const slug =
+            "slug" in product && product.slug
+              ? String(product.slug)
+              : String(product.id);
+
+          const updatedAt =
+            "updatedAt" in product
+              ? product.updatedAt
+              : "updated_at" in product
+                ? product.updated_at
+                : undefined;
+
+          return `
+      <url>
+        <loc>${baseUrl}/product/${escapeXml(slug)}</loc>
+        <lastmod>${formatDate(updatedAt)}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+      </url>`;
+            })
+            .join("");
+
+          const blogUrls = blogs
+            .map((blog) => `
+      <url>
+        <loc>${baseUrl}/blog/${escapeXml(String(blog.slug))}</loc>
+        <lastmod>${formatDate(blog.updated_at)}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.7</priority>
+      </url>`)
+            .join("");
+
+          const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
+    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
+      <!-- HOMEPAGE -->
+      <url>
+        <loc>${baseUrl}/</loc>
+        <lastmod>${today}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>1.0</priority>
+      </url>
+
+      <!-- ABOUT PAGE -->
+      <url>
+        <loc>${baseUrl}/about</loc>
+        <lastmod>${today}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.8</priority>
+      </url>
+
+      <!-- FAQ PAGE -->
+      <url>
+        <loc>${baseUrl}/faq</loc>
+        <lastmod>${today}</lastmod>
+        <changefreq>monthly</changefreq>
+        <priority>0.7</priority>
+      </url>
+
+      <!-- PRODUCTS -->
+      ${productUrls}
+
+      <!-- BLOG POSTS -->
+      ${blogUrls}
+
+    </urlset>`;
+
+      res
+        .status(200)
+        .type("application/xml")
+        .send(sitemap);
+    } catch (error) {
+      console.error("Sitemap error:", error);
+      res.status(500).type("text/plain").send("Error generating sitemap");
+    }
+  });
+
   // Get all products
   app.get("/api/products", async (_req, res) => {
     try {
@@ -360,7 +472,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!wasAlreadyPaid && updated) {
         const items = await storage.getOrderItems(order.id);
         const { notifyNewOrder } = await import("./notifications");
-        notifyNewOrder(updated, items).catch((err) =>
+        notifyNewOSrder(updated, items).catch((err) =>
           console.error("Order notification failed:", err),
         );
       }
