@@ -1,0 +1,245 @@
+diff --git a/.env.example b/.env.example
+index 738ab87..2d3628c 100644
+--- a/.env.example
++++ b/.env.example
+@@ -40,3 +40,14 @@ ADMIN_EMAIL=you@gmail.com
+ # to create a bot via @BotFather and find your chat ID.
+ TELEGRAM_BOT_TOKEN=
+ TELEGRAM_CHAT_ID=
++
++# Shiprocket — create an API user in your Shiprocket dashboard
++# (Settings → API → Configure → Create an API User).
++SHIPROCKET_EMAIL=
++SHIPROCKET_PASSWORD=
++# Exact pickup location nickname from your Shiprocket dashboard, used when
++# creating shipments via the admin "Ship Now" action.
++SHIPROCKET_PICKUP_LOCATION=
++# Pickup pincode used for live shipping-rate lookups at checkout. Defaults
++# to 302029 in code if left blank, but set it explicitly here too.
++SHIPROCKET_PICKUP_PINCODE=302029
+diff --git a/client/src/pages/CartPage.tsx b/client/src/pages/CartPage.tsx
+index 0559888..c68a03f 100644
+--- a/client/src/pages/CartPage.tsx
++++ b/client/src/pages/CartPage.tsx
+@@ -160,7 +160,7 @@ export default function CartPage() {
+                   </div>
+                   <div className="flex justify-between text-muted-foreground">
+                     <span>Shipping</span>
+-                    <span className="text-accent-foreground font-medium">FREE</span>
++                    <span className="text-muted-foreground text-sm">Calculated at checkout</span>
+                   </div>
+                   <div className="border-t pt-3 flex justify-between font-bold text-xl">
+                     <span>Total</span>
+diff --git a/client/src/pages/CheckoutPage.tsx b/client/src/pages/CheckoutPage.tsx
+index bf0f1b0..1ef7dd8 100644
+--- a/client/src/pages/CheckoutPage.tsx
++++ b/client/src/pages/CheckoutPage.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react";
++import { useState, useEffect } from "react";
+ import { useLocation } from "wouter";
+ import { motion } from "framer-motion";
+ import { useCart } from "@/contexts/CartContext";
+@@ -40,6 +40,32 @@ export default function CheckoutPage() {
+   const [, navigate] = useLocation();
+   const [form, setForm] = useState<ShippingForm>(EMPTY_FORM);
+   const [isSubmitting, setIsSubmitting] = useState(false);
++  const [shippingRate, setShippingRate] = useState<{
++    rate: number;
++    courierName: string;
++    serviceable: boolean;
++  } | null>(null);
++  const [checkingRate, setCheckingRate] = useState(false);
++
++  useEffect(() => {
++    if (form.shippingPincode.length !== 6) {
++      setShippingRate(null);
++      return;
++    }
++    setCheckingRate(true);
++    fetch("/api/checkout/shipping-rate", {
++      method: "POST",
++      headers: { "Content-Type": "application/json" },
++      body: JSON.stringify({
++        pincode: form.shippingPincode,
++        items: cart.items.map((i) => ({ quantity: i.quantity })),
++      }),
++    })
++      .then((res) => res.json())
++      .then((data) => setShippingRate(data))
++      .catch(() => setShippingRate(null))
++      .finally(() => setCheckingRate(false));
++  }, [form.shippingPincode, cart.items]);
+ 
+   const handleChange =
+     (field: keyof ShippingForm) =>
+@@ -290,7 +316,7 @@ export default function CheckoutPage() {
+                 </>
+               )}
+               {paymentStatus === "idle" &&
+-                `Pay ₹${cart.total.toFixed(2)}`}
++                `Pay ₹${(cart.total + (shippingRate?.rate || 0)).toFixed(2)}`}
+             </Button>
+           </form>
+ 
+@@ -317,10 +343,20 @@ export default function CheckoutPage() {
+                   </div>
+                 ))}
+               </div>
++              <div className="flex justify-between text-sm text-muted-foreground mb-3">
++                <span>Shipping</span>
++                <span>
++                  {checkingRate
++                    ? "Calculating..."
++                    : shippingRate?.serviceable
++                    ? `₹${shippingRate.rate.toFixed(2)} (${shippingRate.courierName})`
++                    : "Enter pincode"}
++                </span>
++              </div>
+               <div className="border-t pt-3 flex justify-between font-bold text-lg">
+                 <span>Total</span>
+                 <span className="text-primary">
+-                  ₹{cart.total.toFixed(2)}
++                  ₹{(cart.total + (shippingRate?.rate || 0)).toFixed(2)}
+                 </span>
+               </div>
+               <p className="text-xs text-muted-foreground mt-4">
+diff --git a/server/routes.ts b/server/routes.ts
+index 4db9996..3bcd50d 100644
+--- a/server/routes.ts
++++ b/server/routes.ts
+@@ -168,6 +168,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
+     next();
+   }
+ 
++  // Public: live shipping cost estimate for a given pincode + cart weight.
++  // Used by the Checkout page to show real shipping cost before payment.
++  app.post("/api/checkout/shipping-rate", async (req, res) => {
++    try {
++      const { pincode, items } = req.body;
++      if (!pincode || !items || !Array.isArray(items)) {
++        return res.status(400).json({ error: "pincode and items are required" });
++      }
++
++      let totalQuantity = 0;
++      for (const item of items) {
++        totalQuantity += item.quantity || 0;
++      }
++      const weightKg = Math.max(0.08 * totalQuantity, 0.08);
++
++      const { checkShippingRate } = await import("./shiprocket");
++      const result = await checkShippingRate({ deliveryPincode: pincode, weightKg });
++
++      res.json(result);
++    } catch (error) {
++      console.error("Shipping rate check error:", error);
++      res.status(500).json({ error: "Failed to check shipping rate" });
++    }
++  });
++
+   // Creates an order from the cart. The server re-looks-up each product's
+   // real price rather than trusting whatever the client sends — this is
+   // the authoritative source of truth for what gets charged.
+@@ -212,13 +237,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
+         return res.status(400).json({ error: "Cart is empty" });
+       }
+ 
+-      // Shipping is free for now (matches what the cart page already shows).
+-      const total = subtotal;
++      const { checkShippingRate } = await import("./shiprocket");
++      const totalQuantity = checkout.items.reduce((sum, i) => sum + i.quantity, 0);
++      const weightKg = Math.max(0.08 * totalQuantity, 0.08);
++      const shippingResult = await checkShippingRate({
++        deliveryPincode: checkout.shippingPincode,
++        weightKg,
++      });
++
++      if (!shippingResult.serviceable) {
++        return res.status(400).json({
++          error: "Sorry, we don't currently ship to this pincode.",
++        });
++      }
++
++      const shippingCost = shippingResult.rate;
++      const total = subtotal + shippingCost;
+ 
+       const order = await storage.createOrder(
+         {
+           userId: req.session.userId!,
+           subtotal: subtotal.toFixed(2),
++          shippingCost: shippingCost.toFixed(2),
+           total: total.toFixed(2),
+           shippingName: checkout.shippingName,
+           shippingPhone: checkout.shippingPhone,
+diff --git a/server/shiprocket.ts b/server/shiprocket.ts
+index 818d01e..cf0e8eb 100644
+--- a/server/shiprocket.ts
++++ b/server/shiprocket.ts
+@@ -182,3 +182,43 @@ export async function trackShipment(awbCode: string) {
+     trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
+   };
+ }
++
++export interface ShippingRateParams {
++  deliveryPincode: string;
++  weightKg: number;
++}
++
++export interface ShippingRateResult {
++  rate: number;
++  courierName: string;
++  serviceable: boolean;
++}
++
++/**
++ * Checks live shipping cost for a delivery pincode via Shiprocket's
++ * serviceability endpoint. Picks the cheapest available courier.
++ */
++export async function checkShippingRate(
++  params: ShippingRateParams,
++): Promise<ShippingRateResult> {
++  const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "302029";
++
++  const data = await shiprocketRequest(
++    `/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${params.deliveryPincode}&weight=${params.weightKg}&cod=0`,
++  );
++
++  const couriers = data?.data?.available_courier_companies;
++  if (!couriers || couriers.length === 0) {
++    return { rate: 0, courierName: "", serviceable: false };
++  }
++
++  const cheapest = couriers.reduce((min: any, c: any) =>
++    parseFloat(c.rate) < parseFloat(min.rate) ? c : min,
++  );
++
++  return {
++    rate: parseFloat(cheapest.rate),
++    courierName: cheapest.courier_name,
++    serviceable: true,
++  };
++}
+diff --git a/server/storage.ts b/server/storage.ts
+index 2475814..49dadac 100644
+--- a/server/storage.ts
++++ b/server/storage.ts
+@@ -221,6 +221,7 @@ export class MemStorage implements IStorage {
+       ...insertOrder,
+       id,
+       status: "pending",
++      shippingCost: insertOrder.shippingCost ?? "0",
+       shippingAddressLine2: insertOrder.shippingAddressLine2 ?? null,
+       razorpayOrderId: null,
+       razorpayPaymentId: null,
+diff --git a/shared/schema.ts b/shared/schema.ts
+index d015eeb..7246f45 100644
+--- a/shared/schema.ts
++++ b/shared/schema.ts
+@@ -72,6 +72,7 @@ export const orders = pgTable("orders", {
+   userId: varchar("user_id").notNull().references(() => users.id),
+   status: text("status").notNull().default("pending"), // pending, paid, shipped, delivered, cancelled, failed
+   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
++  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }).notNull().default("0"),
+   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+ 
+   // Shipping address, collected at checkout

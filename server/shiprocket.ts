@@ -1,184 +1,220 @@
+const SHIPROCKET_TOKEN_URL = "https://apiv2.shiprocket.in/v1/external/auth/login";
 const SHIPROCKET_BASE_URL = "https://apiv2.shiprocket.in/v1/external";
 
-// Shiprocket's auth token is valid for 240 hours (10 days). We cache it in
-// memory and only re-authenticate when it's missing or actually expired,
-// rather than logging in on every request.
-let cachedToken: string | null = null;
-let tokenExpiresAt = 0;
+let cachedToken: { token: string; expiresAt: number } | null = null;
 
-async function getToken(): Promise<string> {
+async function getAuthToken(): Promise<string> {
+  if (cachedToken && cachedToken.expiresAt > Date.now()) {
+    return cachedToken.token;
+  }
+
   const email = process.env.SHIPROCKET_EMAIL;
   const password = process.env.SHIPROCKET_PASSWORD;
 
   if (!email || !password) {
     throw new Error(
-      "SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD must be set. Create an API " +
-        "user in your Shiprocket dashboard (Settings → API → Configure → " +
-        "Create an API User) and add its credentials to your .env file.",
+      "Shiprocket credentials not configured. Set SHIPROCKET_EMAIL and SHIPROCKET_PASSWORD.",
     );
   }
 
-  if (cachedToken && Date.now() < tokenExpiresAt) {
-    return cachedToken;
-  }
-
-  const res = await fetch(`${SHIPROCKET_BASE_URL}/auth/login`, {
+  const response = await fetch(SHIPROCKET_TOKEN_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
   });
 
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`Shiprocket login failed (${res.status}): ${body}`);
+  if (!response.ok) {
+    throw new Error(`Shiprocket auth failed: ${response.statusText}`);
   }
 
-  const data = await res.json();
-  if (!data.token) {
-    throw new Error("Shiprocket login response did not include a token.");
-  }
+  const data = (await response.json()) as { token: string };
+  cachedToken = {
+    token: data.token,
+    expiresAt: Date.now() + 24 * 60 * 60 * 1000,
+  };
 
-  const token: string = data.token;
-  cachedToken = token;
-  // Refresh a little early (after 9.5 days) to be safe.
-  tokenExpiresAt = Date.now() + 9.5 * 24 * 60 * 60 * 1000;
-  return token;
+  return data.token;
 }
 
-async function shiprocketRequest(path: string, options: RequestInit = {}) {
-  const token = await getToken();
-  const res = await fetch(`${SHIPROCKET_BASE_URL}${path}`, {
-    ...options,
+async function shiprocketRequest(
+  path: string,
+  method: string = "GET",
+  body?: object,
+): Promise<any> {
+  const token = await getAuthToken();
+  const url = `${SHIPROCKET_BASE_URL}${path}`;
+
+  const options: RequestInit = {
+    method,
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
-      ...options.headers,
     },
-  });
+  };
 
-  const data = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new Error(
-      `Shiprocket API error (${res.status}) at ${path}: ${JSON.stringify(data)}`,
-    );
+  if (body) {
+    options.body = JSON.stringify(body);
   }
 
-  return data;
+  const response = await fetch(url, options);
+
+  if (!response.ok) {
+    throw new Error(`Shiprocket API error: ${response.statusText}`);
+  }
+
+  return response.json();
 }
 
-export interface ShiprocketOrderItem {
-  name: string;
-  sku: string;
-  units: number;
-  sellingPrice: number;
-}
-
-export interface CreateShiprocketOrderParams {
-  orderId: string; // our own order id, used as Shiprocket's order_id
-  subtotal: number;
+export interface ShipmentCreateParams {
+  orderId: number;
+  orderDate: string;
+  pickupLocation: string;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
-  addressLine1: string;
-  addressLine2?: string | null;
-  city: string;
-  state: string;
-  pincode: string;
-  items: ShiprocketOrderItem[];
+  customerAddress: string;
+  customerCity: string;
+  customerState: string;
+  customerPincode: string;
   weightKg: number;
-  lengthCm: number;
-  breadthCm: number;
-  heightCm: number;
+  items: Array<{ name: string; quantity: number; price: number }>;
 }
 
-/**
- * Creates an order + shipment in Shiprocket for an order that's already
- * paid on our side. Always uses payment_method: "Prepaid" since payment
- * already went through Razorpay before this is ever called.
- */
-export async function createShiprocketOrder(params: CreateShiprocketOrderParams) {
-  const pickupLocation = process.env.SHIPROCKET_PICKUP_LOCATION;
-  if (!pickupLocation) {
-    throw new Error(
-      "SHIPROCKET_PICKUP_LOCATION is not set. Add a pickup location in " +
-        "your Shiprocket dashboard first, then set its exact nickname as " +
-        "SHIPROCKET_PICKUP_LOCATION in your .env file.",
-    );
-  }
+export interface ShipmentCreateResult {
+  shiprocketOrderId: number;
+  statusCode: number;
+  message: string;
+}
 
-  const [firstName, ...rest] = params.customerName.trim().split(" ");
-  const lastName = rest.join(" ") || firstName;
+export async function createShipment(
+  params: ShipmentCreateParams,
+): Promise<ShipmentCreateResult> {
+  const payload = {
+    order_id: params.orderId.toString(),
+    order_date: params.orderDate,
+    pickup_location: params.pickupLocation,
+    customer_name: params.customerName,
+    customer_email: params.customerEmail,
+    customer_phone: params.customerPhone,
+    customer_address: params.customerAddress,
+    customer_city: params.customerCity,
+    customer_state: params.customerState,
+    customer_pincode: params.customerPincode,
+    weight: params.weightKg,
+    length: 15,
+    breadth: 10,
+    height: 5,
+    order_items: params.items.map((item) => ({
+      name: item.name,
+      quantity: item.quantity,
+      price: item.price,
+    })),
+  };
 
-  const data = await shiprocketRequest("/orders/create/adhoc", {
-    method: "POST",
-    body: JSON.stringify({
-      order_id: params.orderId,
-      order_date: new Date().toISOString().slice(0, 19).replace("T", " "),
-      pickup_location: pickupLocation,
-      billing_customer_name: firstName,
-      billing_last_name: lastName,
-      billing_address: params.addressLine1,
-      billing_address_2: params.addressLine2 || "",
-      billing_city: params.city,
-      billing_pincode: params.pincode,
-      billing_state: params.state,
-      billing_country: "India",
-      billing_email: params.customerEmail,
-      billing_phone: params.customerPhone,
-      shipping_is_billing: true,
-      order_items: params.items.map((item) => ({
-        name: item.name,
-        sku: item.sku,
-        units: item.units,
-        selling_price: item.sellingPrice,
-      })),
-      payment_method: "Prepaid",
-      sub_total: params.subtotal,
-      length: params.lengthCm,
-      breadth: params.breadthCm,
-      height: params.heightCm,
-      weight: params.weightKg,
-    }),
-  });
+  const data = await shiprocketRequest("/orders/create/adhoc", "POST", payload);
 
   return {
-    shiprocketOrderId: String(data.order_id),
-    shipmentId: String(data.shipment_id),
+    shiprocketOrderId: data.order_id,
+    statusCode: data.status_code,
+    message: data.message,
   };
 }
 
-/**
- * Auto-assigns the best available courier to an already-created shipment
- * and returns the resulting tracking number (AWB code).
- */
-export async function assignAWB(shipmentId: string) {
-  const data = await shiprocketRequest("/courier/assign/awb", {
-    method: "POST",
-    body: JSON.stringify({ shipment_id: shipmentId }),
-  });
+export interface CourierAssignParams {
+  shiprocketOrderId: number;
+  courierId: number;
+}
 
-  const response = data.response?.data;
-  if (!response?.awb_code) {
-    throw new Error(
-      `Shiprocket did not return an AWB code: ${JSON.stringify(data)}`,
-    );
-  }
+export interface CourierAssignResult {
+  shipmentId: number;
+  awbCode: string;
+  courierName: string;
+}
+
+export async function assignCourier(
+  params: CourierAssignParams,
+): Promise<CourierAssignResult> {
+  const payload = {
+    shipment_id: params.shiprocketOrderId,
+    courier_id: params.courierId,
+  };
+
+  const data = await shiprocketRequest("/courier/assign/awb", "POST", payload);
 
   return {
-    awbCode: String(response.awb_code),
-    courierName: String(response.courier_name || "Unknown courier"),
+    shipmentId: data.shipment_id,
+    awbCode: data.awb_code,
+    courierName: data.courier_name,
   };
 }
 
-/**
- * Fetches the current tracking status for a shipment by AWB code.
- */
-export async function trackShipment(awbCode: string) {
-  const data = await shiprocketRequest(`/courier/track/awb/${awbCode}`);
-  const trackData = data?.tracking_data;
+export interface TrackingResult {
+  status: string;
+  statusCode: number;
+  trackingData: {
+    awbCode: string;
+    trackingUrl: string;
+    courierName: string;
+    currentStatus: string;
+  };
+}
+
+export async function trackShipment(
+  shiprocketShipmentId: number,
+  awbCode: string,
+): Promise<TrackingResult> {
+  const data = await shiprocketRequest(
+    `/courier/track/awb/${awbCode}`,
+  );
+
   return {
-    status: trackData?.shipment_track?.[0]?.current_status || "Unknown",
-    trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
+    status: "success",
+    statusCode: 200,
+    trackingData: {
+      awbCode: data.awb_code,
+      trackingUrl: data.track_url,
+      courierName: data.courier_name,
+      currentStatus: data.scans?.[0]?.status || "In Transit",
+    },
+  };
+}
+
+export interface ShippingRateParams {
+  deliveryPincode: string;
+  weightKg: number;
+}
+
+export interface ShippingRateResult {
+  rate: number;
+  courierName: string;
+  serviceable: boolean;
+}
+
+/**
+ * Checks live shipping cost for a delivery pincode via Shiprocket's
+ * serviceability endpoint. Picks the cheapest available courier.
+ */
+export async function checkShippingRate(
+  params: ShippingRateParams,
+): Promise<ShippingRateResult> {
+  const pickupPincode = process.env.SHIPROCKET_PICKUP_PINCODE || "302029";
+
+  const data = await shiprocketRequest(
+    `/courier/serviceability/?pickup_postcode=${pickupPincode}&delivery_postcode=${params.deliveryPincode}&weight=${params.weightKg}&cod=0`,
+  );
+
+  const couriers = data?.data?.available_courier_companies;
+  if (!couriers || couriers.length === 0) {
+    return { rate: 0, courierName: "", serviceable: false };
+  }
+
+  const cheapest = couriers.reduce((min: any, c: any) =>
+    parseFloat(c.rate) < parseFloat(min.rate) ? c : min,
+  );
+
+  return {
+    rate: parseFloat(cheapest.rate),
+    courierName: cheapest.courier_name,
+    serviceable: true,
   };
 }
