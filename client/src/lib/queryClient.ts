@@ -7,7 +7,9 @@ import { BASE_URL } from "../ENDPOINTS";
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
-    throw new Error(`${res.status}: ${text}`);
+    let message = text;
+    try { const body = JSON.parse(text); if (typeof body.error === "string") message = body.error; else if (body.error?.fieldErrors) message = Object.values(body.error.fieldErrors).flat().join(" "); } catch { /* Use response text. */ }
+    throw new Error(message || `Request failed (${res.status})`);
   }
 }
 

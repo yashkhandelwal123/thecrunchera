@@ -1,183 +1,35 @@
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Menu, X, Leaf, LogOut, Package } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ShoppingBag, Menu, X, UserRound, LogOut } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
-import GoogleSignInButton from "@/components/GoogleSignInButton";
-import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { motion, AnimatePresence } from "framer-motion";
+import { useEffect, useState } from "react";
+import BrandLogo from "./BrandLogo";
 
 export default function Navbar() {
   const [location] = useLocation();
   const { itemCount } = useCart();
   const { user, signOut } = useAuth();
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const navItems = [
-    { path: "/", label: "Home" },
-    { path: "/products", label: "Products" },
-    { path: "/about", label: "About Us" },
-    { path: "/contact", label: "Contact" },
-  ];
-
-  const isActive = (path: string) => location === path;
-
-  return (
-    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-lg border-b">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          <Link href="/" className="flex items-center gap-2 hover-elevate rounded-md px-2 py-1">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-              <Leaf className="w-5 h-5 text-primary-foreground" />
-            </div>
-            <span className="font-heading font-bold text-xl text-foreground">The Crunch Era</span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-2">
-            {navItems.map((item) => (
-              <Link key={item.path} href={item.path}>
-                <Button
-                  variant={isActive(item.path) ? "secondary" : "ghost"}
-                  className="font-medium"
-                  data-testid={`link-nav-${item.label.toLowerCase().replace(" ", "-")}`}
-                >
-                  {item.label}
-                </Button>
-              </Link>
-            ))}
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link href="/cart">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="relative"
-                data-testid="button-cart"
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {itemCount > 0 && (
-                  <Badge
-                    className="absolute -top-1 -right-1 h-5 min-w-5 flex items-center justify-center p-0 px-1"
-                    variant="default"
-                    data-testid="text-cart-count"
-                  >
-                    {itemCount}
-                  </Badge>
-                )}
-              </Button>
-            </Link>
-
-            <div className="hidden md:block">
-              {user ? (
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="rounded-full"
-                      data-testid="button-account-menu"
-                    >
-                      <Avatar className="h-8 w-8">
-                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel className="truncate">{user.name}</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <Link href="/orders">
-                      <DropdownMenuItem data-testid="link-my-orders">
-                        <Package className="w-4 h-4 mr-2" />
-                        My Orders
-                      </DropdownMenuItem>
-                    </Link>
-                    <DropdownMenuItem onClick={() => signOut()} data-testid="button-signout">
-                      <LogOut className="w-4 h-4 mr-2" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              ) : (
-                <GoogleSignInButton />
-              )}
-            </div>
-
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              data-testid="button-mobile-menu"
-            >
-              {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </Button>
-          </div>
+  const [open, setOpen] = useState(false);
+  useEffect(() => { setOpen(false); }, [location]);
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
+  }, []);
+  const links = [{ href: "/products", label: "Shop chips" }, { href: "/about", label: "Our story" }, { href: "/shipping", label: "Shipping & offers" }];
+  return <>
+    <a className="skip-link" href="#main-content">Skip to content</a>
+    <div className="announcement">A little more crunch, a little less shipping. <Link href="/shipping">Free delivery from ₹359 <span aria-hidden="true">↗</span></Link></div>
+    <header className="store-header">
+      <div className="shell header-inner">
+        <BrandLogo />
+        <nav aria-label="Main navigation" className="desktop-nav">{links.map(link => <Link key={link.href} href={link.href} aria-current={location === link.href ? "page" : undefined}>{link.label}</Link>)}</nav>
+        <div className="header-actions">
+          <Link href="/orders" className="icon-link account-link" aria-label="Your orders"><UserRound size={21} /></Link>
+          <Link href="/cart" className="cart-link" aria-label={`Shopping bag, ${itemCount} items`} data-testid="button-cart"><ShoppingBag size={21} /><span className="bag-label">Bag</span><span className="bag-count" aria-live="polite">{itemCount}</span></Link>
+          <button className="icon-link mobile-menu-button" aria-label={open ? "Close menu" : "Open menu"} aria-expanded={open} aria-controls="mobile-nav" onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button>
         </div>
       </div>
-
-      <AnimatePresence>
-        {mobileMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: "auto" }}
-            exit={{ opacity: 0, height: 0 }}
-            className="md:hidden border-t bg-background"
-          >
-            <div className="px-6 py-4 space-y-2">
-              {navItems.map((item) => (
-                <Link key={item.path} href={item.path}>
-                  <Button
-                    variant={isActive(item.path) ? "secondary" : "ghost"}
-                    className="w-full justify-start font-medium"
-                    onClick={() => setMobileMenuOpen(false)}
-                    data-testid={`link-mobile-${item.label.toLowerCase().replace(" ", "-")}`}
-                  >
-                    {item.label}
-                  </Button>
-                </Link>
-              ))}
-
-              <div className="pt-2 border-t">
-                {user ? (
-                  <div className="flex items-center justify-between px-2 py-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <Avatar className="h-8 w-8 shrink-0">
-                        <AvatarImage src={user.avatarUrl ?? undefined} alt={user.name} />
-                        <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium truncate">{user.name}</span>
-                    </div>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => signOut()}
-                      data-testid="button-mobile-signout"
-                    >
-                      <LogOut className="w-4 h-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="px-2 py-2">
-                    <GoogleSignInButton />
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </nav>
-  );
+      {open && <nav id="mobile-nav" className="mobile-nav shell" aria-label="Mobile navigation">{links.map(link => <Link key={link.href} href={link.href}>{link.label}</Link>)}<Link href="/contact">Contact us</Link><Link href="/orders">Your orders</Link>{user && <button onClick={() => { void signOut(); setOpen(false); }}><LogOut size={16} /> Sign out</button>}</nav>}
+    </header>
+  </>;
 }

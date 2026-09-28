@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import { storage } from "./storage";
+import { quoteCart, PricingError } from "./pricing";
+import { publicProduct } from "../shared/catalog";
 import { registerSeoRoutes } from "./seo";
-import { insertNewsletterSchema, insertContactSchema, checkoutSchema } from "@shared/schema";
+import { insertNewsletterSchema, insertContactSchema, checkoutSchema, quoteSchema } from "@shared/schema";
 
 const googleClient = process.env.GOOGLE_CLIENT_ID
   ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
@@ -17,7 +19,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products", async (_req, res) => {
     try {
       const products = await storage.getAllProducts();
-      res.json(products);
+      res.json(products.map(publicProduct));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
@@ -30,7 +32,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      res.json(product);
+      res.json(publicProduct(product));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch product" });
     }
@@ -40,7 +42,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/category/:category", async (req, res) => {
     try {
       const products = await storage.getProductsByCategory(req.params.category);
-      res.json(products);
+      res.json(products.map(publicProduct));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
@@ -171,6 +173,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
+  // Public quote: all prices are read from storage, never from client totals.
+  app.post("/api/checkout/quote", async (req, res) => {
+    const parsed = quoteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Please check the items and quantities in your cart." });
+    try {
+      const quote = await quoteCart(storage, parsed.data.items, parsed.data.promoCode);
+      res.set("Cache-Control", "no-store").json(quote);
+    } catch (error) {
+      res.status(error instanceof PricingError ? 400 : 503).json({ error: error instanceof PricingError ? error.message : "Prices could not be loaded. Please try again." });
+    }
+  });
+
   // Creates an order from the cart. The server re-looks-up each product's
   // real price rather than trusting whatever the client sends — this is
   // the authoritative source of truth for what gets charged.
@@ -182,47 +196,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const checkout = parsed.data;
 
-      const lineItems: {
-        productId: string;
-        productName: string;
-        productImage: string;
-        unitPrice: string;
-        quantity: number;
-      }[] = [];
-
-      let subtotal = 0;
-
-      for (const item of checkout.items) {
-        const product = await storage.getProductById(item.productId);
-        if (!product) {
-          return res
-            .status(400)
-            .json({ error: `Product ${item.productId} not found` });
-        }
-        const unitPrice = parseFloat(product.price);
-        subtotal += unitPrice * item.quantity;
-
-        lineItems.push({
-          productId: product.id,
-          productName: product.name,
-          productImage: product.image,
-          unitPrice: product.price,
-          quantity: item.quantity,
-        });
+      const quote = await quoteCart(storage, checkout.items, checkout.promoCode);
+      if (quote.promoError) return res.status(400).json({ error: quote.promoError });
+      if (checkout.expectedTotalPaise !== quote.totalPaise) {
+        return res.status(409).json({ error: "Your cart price changed. Review the refreshed total before paying." });
       }
-
-      if (lineItems.length === 0) {
-        return res.status(400).json({ error: "Cart is empty" });
-      }
-
-      // Shipping is free for now (matches what the cart page already shows).
-      const total = subtotal;
 
       const order = await storage.createOrder(
         {
           userId: req.session.userId!,
-          subtotal: subtotal.toFixed(2),
-          total: total.toFixed(2),
+          subtotal: (quote.subtotalPaise / 100).toFixed(2),
+          shippingCharge: (quote.shippingPaise / 100).toFixed(2),
+          discountAmount: (quote.discountPaise / 100).toFixed(2),
+          promoCode: quote.promoCode,
+          total: (quote.totalPaise / 100).toFixed(2),
           shippingName: checkout.shippingName,
           shippingPhone: checkout.shippingPhone,
           shippingAddressLine1: checkout.shippingAddressLine1,
@@ -231,13 +218,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shippingState: checkout.shippingState,
           shippingPincode: checkout.shippingPincode,
         },
-        lineItems,
+        quote.lineItems,
       );
 
       res.status(201).json(order);
     } catch (error) {
       console.error("Create order error:", error);
-      res.status(500).json({ error: "Failed to create order" });
+      res.status(error instanceof PricingError ? 400 : 500).json({ error: error instanceof PricingError ? error.message : "Failed to create order. Please try again." });
     }
   });
 
@@ -533,7 +520,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { shiprocketOrderId, shipmentId } = await createShiprocketOrder({
         orderId: order.id,
-        subtotal: parseFloat(order.subtotal),
+        subtotal: Number((Number(order.subtotal) - Number(order.discountAmount)).toFixed(2)),
+        shippingCharge: Number(order.shippingCharge),
+        discountAmount: Number(order.discountAmount),
         customerName: order.shippingName,
         customerEmail: customer?.email || "orders@thecrunchera.com",
         customerPhone: order.shippingPhone,

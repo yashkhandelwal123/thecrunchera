@@ -20,7 +20,7 @@ function formatOrderSummary(order: Order, items: OrderItem[]): string {
 
   return (
     `New paid order #${order.id.slice(0, 8)}\n` +
-    `Total: ₹${order.total}\n\n` +
+    `Subtotal: ₹${order.subtotal}\nShipping: ₹${order.shippingCharge}\nDiscount: ₹${order.discountAmount}${order.promoCode ? ` (${order.promoCode})` : ""}\nTotal: ₹${order.total}\n\n` +
     `Items:\n${itemLines}\n\n` +
     `Ship to:\n` +
     `${order.shippingName} · ${order.shippingPhone}\n` +
@@ -63,6 +63,7 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
       html: `
         <h2>New paid order</h2>
         <p><strong>Order:</strong> #${order.id.slice(0, 8)}</p>
+        <p>Subtotal: ₹${order.subtotal} · Shipping: ₹${order.shippingCharge} · Discount: ₹${order.discountAmount}</p>
         <p><strong>Total:</strong> ₹${order.total}</p>
         <table style="border-collapse:collapse;">${itemRows}</table>
         <h3>Ship to</h3>
@@ -108,3 +109,4 @@ async function sendTelegramMessage(order: Order, items: OrderItem[]) {
     console.error("[notifications] Failed to send Telegram message:", error);
   }
 }
+

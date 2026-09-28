@@ -1,4 +1,5 @@
 import type { Express, Request, Response } from "express";
+import { publicProduct } from "../shared/catalog";
 import { storage } from "./storage";
 import type { Product } from "../shared/schema";
 import { pageMetadata, productIdFromPath, productPath, productSchema, publicPages, SITE_URL } from "../shared/seo";
@@ -49,7 +50,7 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
   if (product) {
     content = `<main><nav><a href="/">Home</a> / <a href="/products">Chips</a></nav><h1>${escapeHtml(product.name)}</h1><img src="${escapeHtml(metadata.image)}" alt="${escapeHtml(product.name)}" width="480" height="480"><p>${escapeHtml(product.description)}</p><p>₹${escapeHtml(product.price)}</p><a href="/products">Browse all chips</a></main>`;
   } else if (path === "/" || path === "/products") {
-    content = `<main><h1>${path === "/" ? "The Crunchera Bites" : "Shop Chips Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul></main>`;
+    content = `<main><h1>${path === "/" ? "The Crunch Era" : "Shop Chips Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul></main>`;
   }
   return html.replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 }
@@ -60,8 +61,8 @@ export async function sendSeoHtml(req: Request, res: Response, template: string)
   let product: Product | undefined;
   let products: Product[] = [];
   try {
-    if (id) product = await storage.getProductById(id);
-    if (path === "/" || path === "/products") products = await storage.getAllProducts();
+    if (id) { const stored = await storage.getProductById(id); product = stored ? publicProduct(stored) : undefined; }
+    if (path === "/" || path === "/products") products = (await storage.getAllProducts()).map(publicProduct);
   } catch (error) {
     console.error("Unable to load SEO catalog", error);
     res.status(503).set("Retry-After", "60").type("text/plain").send("Store temporarily unavailable. Please try again shortly.");

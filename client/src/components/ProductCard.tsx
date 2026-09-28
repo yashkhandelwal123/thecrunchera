@@ -1,72 +1,20 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ShoppingCart } from "lucide-react";
-import type { Product } from "@shared/schema";
-import { useCart } from "@/contexts/CartContext";
-import { motion } from "framer-motion";
 import { Link } from "wouter";
+import { ArrowUpRight, Plus, Check } from "lucide-react";
+import type { Product } from "@shared/schema";
+import { productDetails } from "@shared/catalog";
 import { productPath } from "@shared/seo";
+import { money, toPaise } from "@shared/pricing";
+import { useCart } from "@/contexts/CartContext";
+import { useState, useEffect } from "react";
 
-interface ProductCardProps {
-  product: Product;
-  index?: number;
-}
-
-export default function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const { addToCart } = useCart();
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.05 }}
-    >
-      <Card className="overflow-hidden hover-elevate active-elevate-2 group h-full flex flex-col" data-testid={`card-product-${product.id}`}>
-        <div className="relative aspect-square bg-muted overflow-hidden">
-        <Link href={productPath(product)} aria-label={`View ${product.name}`}>
-        <img
-          src={product.image}
-          alt={product.name}
-          loading="lazy"
-          decoding="async"
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-        />
-        </Link>
-          {product.badge && (
-            <Badge
-              className="absolute top-3 right-3"
-              variant={product.badge === "Best Seller" ? "default" : "secondary"}
-              data-testid={`badge-${product.id}`}
-            >
-              {product.badge}
-            </Badge>
-          )}
-        </div>
-        <div className="p-4 flex flex-col flex-1 gap-3">
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-1" data-testid={`text-product-name-${product.id}`}>
-              <Link href={productPath(product)}>{product.name}</Link>
-            </h3>
-            <p className="text-sm text-muted-foreground line-clamp-2" data-testid={`text-product-description-${product.id}`}>
-              {product.description}
-            </p>
-          </div>
-          <div className="flex items-center justify-between gap-3">
-            <span className="text-xl font-bold text-primary" data-testid={`text-product-price-${product.id}`}>
-            <span className="currency">₹</span>{parseFloat(product.price).toFixed(2)}
-            </span>
-            <Button
-              onClick={() => addToCart(product)}
-              className="rounded-xl gap-2"
-              data-testid={`button-add-to-cart-${product.id}`}
-            >
-              <ShoppingCart className="w-4 h-4" />
-              Add to Cart
-            </Button>
-          </div>
-        </div>
-      </Card>
-    </motion.div>
-  );
+export default function ProductCard({ product }: { product: Product; index?: number }) {
+  const { addToCart, cart } = useCart();
+  const atLimit = (cart.items.find(item => item.product.id === product.id)?.quantity || 0) >= 99;
+  const detail = productDetails(product);
+  const [added, setAdded] = useState(false);
+  useEffect(() => { if (added) { const id = setTimeout(() => setAdded(false), 1600); return () => clearTimeout(id); } }, [added]);
+  return <article className={`product-card tone-${detail.tone}`} data-testid={`card-product-${product.id}`}>
+    <Link className="product-image-link" href={productPath(product)} aria-label={`View ${product.name}`}><img src={product.image} alt={`${product.name} pack`} loading="lazy" decoding="async" width="800" height="800" /><span className="product-arrow"><ArrowUpRight size={22} /></span></Link>
+    <div className="product-card-body"><div className="product-kicker"><span>{detail.flavour}</span>{detail.packSize && <span>{detail.packSize}</span>}</div><h3><Link href={productPath(product)}>{product.name}</Link></h3><div className="product-card-bottom"><span className="product-price">{money(toPaise(product.price))}</span><button className="small-add" disabled={atLimit} onClick={() => { addToCart(product); setAdded(true); }} aria-label={`Add ${product.name} to bag`} data-testid={`button-add-to-cart-${product.id}`}>{added ? <Check size={16} /> : <Plus size={16} />} {added ? "Added" : "Add to bag"}</button></div></div>
+  </article>;
 }

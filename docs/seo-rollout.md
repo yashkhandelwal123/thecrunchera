@@ -1,3 +1,5 @@
+> Updated storefront and pricing implementation: see [storefront-launch.md](storefront-launch.md). Its deployment prerequisites and audit status supersede the initial SEO-only notes below.
+
 # SEO rollout for Render
 
 This change targets the existing Express deployment on Render. Build with `npm ci && npm run build` and start with `npm start`. A static-only deployment will not run the SEO response handlers. Keep the existing production DATABASE_URL: the development memory catalog generates new IDs on restart and is not suitable for permanent product URLs.
