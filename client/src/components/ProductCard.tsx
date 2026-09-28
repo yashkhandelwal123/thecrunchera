@@ -5,6 +5,8 @@ import { ShoppingCart } from "lucide-react";
 import type { Product } from "@shared/schema";
 import { useCart } from "@/contexts/CartContext";
 import { motion } from "framer-motion";
+import { Link } from "wouter";
+import { productPath } from "@shared/seo";
 
 interface ProductCardProps {
   product: Product;
@@ -22,6 +24,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
     >
       <Card className="overflow-hidden hover-elevate active-elevate-2 group h-full flex flex-col" data-testid={`card-product-${product.id}`}>
         <div className="relative aspect-square bg-muted overflow-hidden">
+        <Link href={productPath(product)} aria-label={`View ${product.name}`}>
         <img
           src={product.image}
           alt={product.name}
@@ -29,6 +32,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
           decoding="async"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
         />
+        </Link>
           {product.badge && (
             <Badge
               className="absolute top-3 right-3"
@@ -42,7 +46,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
         <div className="p-4 flex flex-col flex-1 gap-3">
           <div className="flex-1">
             <h3 className="font-semibold text-lg mb-1" data-testid={`text-product-name-${product.id}`}>
-              {product.name}
+              <Link href={productPath(product)}>{product.name}</Link>
             </h3>
             <p className="text-sm text-muted-foreground line-clamp-2" data-testid={`text-product-description-${product.id}`}>
               {product.description}

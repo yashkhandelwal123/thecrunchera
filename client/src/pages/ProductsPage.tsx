@@ -29,10 +29,10 @@ export default function ProductsPage() {
           className="text-center mb-12"
         >
           <h1 className="font-heading font-bold text-5xl md:text-6xl mb-4" data-testid="text-products-title">
-            Our Products
+            Shop Chips Online
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-            Explore our complete collection of healthy, delicious food for kids and families
+            Explore ragi, oats, moong dal and mix veg chips. Find your favourite crunch and order online.
           </p>
         </motion.div>
 

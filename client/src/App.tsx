@@ -10,6 +10,8 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import HomePage from "@/pages/HomePage";
 import ProductsPage from "@/pages/ProductsPage";
+import ProductDetailPage from "@/pages/ProductDetailPage";
+import Seo from "@/components/Seo";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import CartPage from "@/pages/CartPage";
@@ -39,10 +41,12 @@ function Router() {
 
   return (
     <>
+      <Seo />
       {!hideChrome && <Navbar />}
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/products" component={ProductsPage} />
+        <Route path="/products/:slug/:id" component={ProductDetailPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/manufacturing-details" component={ManufacturingDetails} />
         <Route path="/contact" component={ContactPage} />
