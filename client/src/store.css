@@ -54,3 +54,7 @@ body{font-size:16px;line-height:1.6}
 .mobile-purchase strong,.bag-item-top>strong{font-size:20px;letter-spacing:0;font-variant-numeric:tabular-nums;white-space:nowrap}
 .mobile-purchase small{font-size:13px}
 .policy-table{font-size:15px}
+
+.money-value{display:inline-flex;align-items:baseline;gap:.22em;white-space:nowrap;font-family:'DM Sans',Arial,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:normal;line-height:inherit}
+.money-value>.money-symbol{display:inline-block;flex:none;font-family:Arial,'Noto Sans',sans-serif;letter-spacing:normal}
+.money-value>span:last-child{display:inline-block;flex:none}
