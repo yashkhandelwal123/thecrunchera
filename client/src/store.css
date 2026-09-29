@@ -9,3 +9,48 @@ html{scroll-behavior:smooth;scroll-padding-top:100px}body{margin:0;background:#f
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
 
 @media(max-width:800px){.checkout-summary{order:-1}.checkout-summary .summary-card{position:static}}
+
+/* Fluid storefront layout: generous desktop width, readable text measures. */
+.shell{width:calc(100% - clamp(36px,5vw,112px));max-width:1600px;margin-inline:auto}
+body{font-size:16px;line-height:1.6}
+.hero{grid-template-columns:minmax(0,1fr) minmax(0,1.08fr);gap:clamp(24px,4vw,72px)}
+.hero-copy>p,.lead{font-size:clamp(18px,1.35vw,21px);max-width:58ch}
+.desktop-nav,.header-actions,.text-link{font-size:16px}
+.announcement{font-size:14px;line-height:1.5}
+.eyebrow,.product-kicker{font-size:13px}
+.btn-primary,.btn-light,.btn-outline,.small-add{font-size:16px;min-height:48px}
+.product-grid{gap:clamp(18px,2vw,32px)}
+.product-card h3{font-size:clamp(23px,1.8vw,29px);line-height:1.2}
+.product-card-body p,.detail-copy p,.detail-copy li{font-size:16px}
+.product-price{font-size:24px}
+.detail-price{font-size:clamp(28px,2.5vw,38px)}
+.product-price,.detail-price,.summary-lines,.order-breakdown,.bag-item-top strong,.mobile-purchase strong{font-family:var(--font-sans);font-variant-numeric:tabular-nums;letter-spacing:0;line-height:1.5}
+.product-price,.detail-price,.summary-lines>div>span:last-child{white-space:nowrap}
+.price-caption,.pack-pill,.detail-shipping,.offer-note,.hero-footnote,.hero-caption,.service-strip{font-size:14px;line-height:1.6}
+.bag-grid{grid-template-columns:minmax(0,1.55fr) minmax(370px,1fr);gap:clamp(28px,4vw,64px)}
+.summary-card{padding:clamp(22px,2.3vw,36px);min-width:0}
+.summary-card h2{font-size:26px;line-height:1.25}
+.summary-lines{font-size:16px}
+.summary-lines>div{gap:16px;align-items:baseline}
+.summary-lines .summary-total{font-size:26px;font-weight:800}
+.shipping-progress,.promo-status,.summary-note,.remove-button{font-size:14px;line-height:1.6}
+.promo-field label,.checkout-form label,.contact-form label{font-size:16px;font-weight:600}
+.promo-field input,.promo-field button,.checkout-form input,.contact-form input,.contact-form textarea{font-size:16px;min-height:48px}
+.promo-field input{min-width:0;width:100%}
+.promo-field button{flex-shrink:0}
+.checkout-steps,.breadcrumb,.bag-item-body p{font-size:14px}
+.bag-item-top h2,.bag-item-top h3{font-size:22px}
+.store-footer{font-size:16px}
+.footer-grid a,.footer-grid p,.footer-grid h3,.footer-newsletter input,.footer-newsletter button{font-size:16px;line-height:1.6}
+.fine-print,.footer-bottom{font-size:13px;line-height:1.6}
+.policy-layout{max-width:1000px}
+@media(min-width:1800px){.hero-art{height:620px}.hero-photo-main{width:72%}.hero h1{font-size:100px}}
+@media(max-width:1000px){.bag-grid{grid-template-columns:minmax(0,1.2fr) minmax(330px,1fr);gap:24px}.desktop-nav{gap:20px;font-size:15px}}
+@media(max-width:800px){.hero,.bag-grid{grid-template-columns:1fr}.hero{gap:24px}.summary-card{position:static}.hero-copy>p{font-size:18px}}
+@media(max-width:600px){.shell{width:calc(100% - 36px)}.announcement{font-size:12px}.product-grid{gap:14px}.product-card-body{padding:16px 12px}.product-card h3{font-size:21px}.product-price{font-size:21px}.product-kicker{font-size:12px}.small-add{font-size:14px;padding-inline:12px}.product-card-bottom{flex-wrap:wrap;gap:10px}.summary-lines{font-size:16px}.summary-total{font-size:24px}.hero h1{font-size:clamp(48px,13vw,68px)}.header-actions{font-size:14px}.mobile-purchase{font-size:16px}.footer-grid{gap:32px}.fine-print,.footer-bottom{font-size:13px}}
+/* Keep specific mobile selectors from shrinking essential information. */
+.section-heading .text-link,.bag-heading .text-link{font-size:16px}
+.collection-heading>p,.faq-list summary,.faq-list details p{font-size:16px}
+.mobile-purchase strong,.bag-item-top>strong{font-size:20px;letter-spacing:0;font-variant-numeric:tabular-nums;white-space:nowrap}
+.mobile-purchase small{font-size:13px}
+.policy-table{font-size:15px}

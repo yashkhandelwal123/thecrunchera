@@ -1,17 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 import { BASE_URL } from "../ENDPOINTS";
 
-/* ===============================
-   Error handler
-================================ */
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    const text = (await res.text()) || res.statusText;
-    let message = text;
-    try { const body = JSON.parse(text); if (typeof body.error === "string") message = body.error; else if (body.error?.fieldErrors) message = Object.values(body.error.fieldErrors).flat().join(" "); } catch { /* Use response text. */ }
-    throw new Error(message || `Request failed (${res.status})`);
-  }
-}
+import { fetchApi, readApiJson } from "./apiResponse";
 
 /* ===============================
    REST requests (POST, PUT, DELETE)
@@ -21,7 +11,7 @@ export async function apiRequest(
   path: string,
   data?: unknown,
 ): Promise<Response> {
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const res = await fetchApi(`${BASE_URL}${path}`, {
     method,
     headers: data
       ? {
@@ -32,7 +22,7 @@ export async function apiRequest(
     credentials: "include",
   });
 
-  await throwIfResNotOk(res);
+  await readApiJson(res.clone());
   return res;
 }
 
@@ -48,14 +38,14 @@ export const getQueryFn =
     const path = queryKey[0] as string;
     const url = `${BASE_URL}${path}`;
 
-    const res = await fetch(url, { credentials: "include" });
+    const res = await fetchApi(url, { credentials: "include" });
 
     if (res.status === 401 && on401 === "returnNull") {
       return null as T;
     }
 
-    await throwIfResNotOk(res);
-    return res.json() as Promise<T>;
+    await readApiJson(res.clone());
+    return readApiJson<T>(res);
   };
 
 /* ===============================

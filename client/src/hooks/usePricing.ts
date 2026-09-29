@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/contexts/CartContext";
 import type { PricingQuote } from "@shared/pricing";
 import { BASE_URL } from "@/ENDPOINTS";
+import { fetchApi, readApiJson } from "@/lib/apiResponse";
 export type CartQuote = PricingQuote & { lineItems: { productId: string; productName: string; productImage: string; unitPrice: string; quantity: number }[] };
 export function usePricing() {
   const { cart, promoCode } = useCart();
@@ -10,9 +11,10 @@ export function usePricing() {
     queryKey: ["checkout-quote", items, promoCode], enabled: items.length > 0,
     staleTime: 0, refetchOnWindowFocus: true, retry: 1,
     queryFn: async ({ signal }) => {
-      const response = await fetch(`${BASE_URL}/api/checkout/quote`, { method: "POST", credentials: "include", signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items, promoCode }) });
-      const data = await response.json();
-      if (!response.ok) throw new Error(typeof data.error === "string" ? data.error : "Couldn't check your cart. Please try again.");
+      const response = await fetchApi(`${BASE_URL}/api/checkout/quote`, { method: "POST", credentials: "include", signal, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items, promoCode }) });
+      const data = await readApiJson<CartQuote>(response);
+      const amounts = [data?.subtotalPaise, data?.shippingPaise, data?.discountPaise, data?.additionalChargesPaise, data?.totalPaise];
+      if (!amounts.every(value => Number.isSafeInteger(value) && value >= 0) || !Array.isArray(data?.lineItems) || data.totalPaise !== data.subtotalPaise + data.shippingPaise + data.additionalChargesPaise - data.discountPaise) throw new Error("The store returned incomplete pricing. Please retry before paying.");
       return data;
     },
   });

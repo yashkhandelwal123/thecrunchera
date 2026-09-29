@@ -4,7 +4,7 @@ export const FREE_SHIPPING_FROM_PAISE = 35900;
 export const PROMO_MIN_EXCLUSIVE_PAISE = 45000;
 export const PROMO_CODE = "CRUNCH10";
 export const MAX_ITEM_QUANTITY = 99;
-export const money = (paise: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(paise / 100);
+export const money = (paise: number) => new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 2 }).format(paise / 100).replace("₹", "₹\u00a0");
 export function toPaise(value: string) {
   if (!/^\d+(\.\d{1,2})?$/.test(value)) throw new Error("Invalid catalog price");
   const [whole, fraction = ""] = value.split(".");

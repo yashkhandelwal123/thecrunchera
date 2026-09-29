@@ -181,6 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const quote = await quoteCart(storage, parsed.data.items, parsed.data.promoCode);
       res.set("Cache-Control", "no-store").json(quote);
     } catch (error) {
+      if (!(error instanceof PricingError)) console.error("[checkout/quote] Catalog lookup failed", { name: error instanceof Error ? error.name : "UnknownError" });
       res.status(error instanceof PricingError ? 400 : 503).json({ error: error instanceof PricingError ? error.message : "Prices could not be loaded. Please try again." });
     }
   });

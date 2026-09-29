@@ -66,7 +66,27 @@ test("HTTP quote and order totals agree; rejected promos and changed totals neve
     assert.equal((await storage.getOrderItems(order.id))[0].quantity, 7);
     const one = await post("/api/orders", { ...address, items: [{ productId: product.id, quantity: 1 }], expectedTotalPaise: 14000 }, true);
     assert.equal(one.status, 201); const smallOrder = await one.json(); assert.equal(smallOrder.shippingCharge, "70.00"); assert.equal(smallOrder.total, "140.00");
+    const invalidQuote = await post("/api/checkout/quote", { items, promoCode: "INVALID" });
+    assert.ok((await invalidQuote.json()).promoError);
+    const missingQuote = await post("/api/checkout/quote", {items:[{productId:"missing",quantity:1}]});
+    assert.equal(missingQuote.status,400); assert.match((await missingQuote.json()).error,/no longer available/);
+    const originalLookup = storage.getProductById;
+    try {
+      storage.getProductById = async () => { throw new Error("simulated database outage"); };
+      const failed = await post("/api/checkout/quote", {items});
+      assert.equal(failed.status,503); assert.match(failed.headers.get("content-type")!,/application\/json/);
+      assert.match((await failed.json()).error,/Prices could not be loaded/);
+    } finally { storage.getProductById = originalLookup; }
     const invalidPhone = checkoutSchema.safeParse({ ...payload, shippingPhone: "12" }); assert.equal(invalidPhone.success, false);
     const invalidPin = checkoutSchema.safeParse({ ...payload, shippingPincode: "123" }); assert.equal(invalidPin.success, false);
   } finally { await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve())); }
+});
+
+test("missing catalog data and storage failure never become zero or free quotes", async () => {
+  const product = (await storage.getAllProducts())[0];
+  await assert.rejects(quoteCart({getProductById: async () => ({...product,price:""})}, [{productId:product.id,quantity:1}]), /Invalid catalog price/);
+  await assert.rejects(quoteCart({getProductById: async () => {throw new Error("database unavailable");}}, [{productId:product.id,quantity:1}]), /database unavailable/);
+  const applied = calculatePricing(49000,"CRUNCH10");
+  const removed = calculatePricing(49000,"");
+  assert.equal(applied.totalPaise,44100); assert.equal(removed.totalPaise,49000); assert.equal(removed.discountPaise,0);
 });
