@@ -1,5 +1,5 @@
 import type { Express, Request, Response } from "express";
-import { publicProduct } from "../shared/catalog";
+import { publicProduct, productDetails, productLabelNotice } from "../shared/catalog";
 import { storage } from "./storage";
 import type { Product } from "../shared/schema";
 import { pageMetadata, productIdFromPath, productPath, productSchema, publicPages, SITE_URL } from "../shared/seo";
@@ -48,7 +48,9 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
   // It uses the same catalog data as the browser, with no separate bot response.
   let content = "";
   if (product) {
-    content = `<main><nav><a href="/">Home</a> / <a href="/products">Chips</a></nav><h1>${escapeHtml(product.name)}</h1><img src="${escapeHtml(metadata.image)}" alt="${escapeHtml(product.name)}" width="480" height="480"><p>${escapeHtml(product.description)}</p><p>₹${escapeHtml(product.price)}</p><a href="/products">Browse all chips</a></main>`;
+    const detail = productDetails(product);
+    const facts = `<h2>Pack details</h2><p>${escapeHtml(detail.flavour)}${detail.packSize ? ` · ${escapeHtml(detail.packSize)}` : ""}</p>${detail.ingredients ? `<h2>Ingredients</h2><p>${escapeHtml(detail.ingredients)}</p>` : ""}${detail.shelfLife ? `<h2>Shelf life</h2><p>${escapeHtml(detail.shelfLife)}</p>` : ""}<p>${escapeHtml(productLabelNotice)}</p>`;
+    content = `<main><nav><a href="/">Home</a> / <a href="/products">Chips</a></nav><h1>${escapeHtml(product.name)}</h1><img src="${escapeHtml(metadata.image)}" alt="${escapeHtml(product.name)}" width="480" height="480"><p>${escapeHtml(product.description)}</p><p>₹${escapeHtml(product.price)}</p>${facts}<a href="/products">Browse all chips</a></main>`;
   } else if (path === "/" || path === "/products") {
     content = `<main><h1>${path === "/" ? "The Crunch Era" : "Shop Chips Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul></main>`;
   }

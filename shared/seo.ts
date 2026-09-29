@@ -1,4 +1,5 @@
 import type { Product } from "./schema";
+import { productDetails } from "./catalog";
 
 export const SITE_URL = "https://thecrunchera.com";
 export const BRAND = "The Crunch Era";
@@ -34,7 +35,7 @@ export function productSchema(product: Product) {
 }
 
 export function pageMetadata(path: string, product?: Product) {
-  if (product) return { title: `Buy ${product.name} Online | ${BRAND}`, description: product.description, path: productPath(product), noindex: false, image: new URL(product.image, SITE_URL).href };
+  if (product) return { title: `Buy ${product.name} Online | ${BRAND}`, description: productDetails(product).metaDescription || product.description, path: productPath(product), noindex: false, image: new URL(product.image, SITE_URL).href };
   const page = publicPages[path];
   return { title: page?.title || `The Crunch Era`, description: page?.description || "Shop and manage your orders at The Crunch Era.", path, noindex: !page, image: SITE_URL + "/product-images/ragi_chips.webp" };
 }
