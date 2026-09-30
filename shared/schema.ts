@@ -73,6 +73,9 @@ export const orders = pgTable("orders", {
   status: text("status").notNull().default("pending"), // pending, paid, shipped, delivered, cancelled, failed
   subtotal: decimal("subtotal", { precision: 10, scale: 2 }).notNull(),
   total: decimal("total", { precision: 10, scale: 2 }).notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  shippingCharge: decimal("shipping_charge", { precision: 10, scale: 2 }).notNull().default("0"),
+  promoCode: text("promo_code"),
 
   // Shipping address, collected at checkout
   shippingName: text("shipping_name").notNull(),
@@ -138,18 +141,23 @@ export type OrderItem = typeof orderItems.$inferSelect;
 // the server looks up the real product to get authoritative price/name).
 export const checkoutItemSchema = z.object({
   productId: z.string(),
-  quantity: z.number().int().positive(),
+  quantity: z.number().int().min(1).max(99),
 });
 
-export const checkoutSchema = z.object({
-  items: z.array(checkoutItemSchema).min(1),
-  shippingName: z.string().min(1),
-  shippingPhone: z.string().min(6),
-  shippingAddressLine1: z.string().min(1),
-  shippingAddressLine2: z.string().optional(),
-  shippingCity: z.string().min(1),
-  shippingState: z.string().min(1),
-  shippingPincode: z.string().min(4),
+export const quoteSchema = z.object({
+  items: z.array(checkoutItemSchema).min(1).max(50),
+  promoCode: z.string().trim().max(40).optional(),
+});
+
+export const checkoutSchema = quoteSchema.extend({
+  expectedTotalPaise: z.number().int().positive(),
+  shippingName: z.string().trim().min(2).max(120),
+  shippingPhone: z.string().trim().regex(/^(?:\+91[ -]?)?[6-9][0-9]{9}$/, "Enter a valid 10-digit Indian mobile number"),
+  shippingAddressLine1: z.string().trim().min(5).max(250),
+  shippingAddressLine2: z.string().trim().max(250).optional(),
+  shippingCity: z.string().trim().min(2).max(100),
+  shippingState: z.string().trim().min(2).max(100),
+  shippingPincode: z.string().regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit pincode"),
 });
 
 export type CheckoutRequest = z.infer<typeof checkoutSchema>;
@@ -174,3 +182,4 @@ export interface Testimonial {
   comment: string;
   avatar?: string;
 }
+

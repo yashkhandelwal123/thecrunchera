@@ -1,144 +1,26 @@
 import { Link } from "wouter";
-import { Leaf } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-// import {BASE_URL} from "../ENDPOINTS"
+import BrandLogo from "./BrandLogo";
 
 export default function Footer() {
   const [email, setEmail] = useState("");
-  const { toast } = useToast();
-
-  const newsletterMutation = useMutation({
-    mutationFn: (email: string) => apiRequest("POST", "/api/newsletter", { email }),
-    onSuccess: () => {
-      toast({
-        title: "Subscribed!",
-        description: "Thank you for subscribing to our newsletter.",
-      });
-      setEmail("");
-    },
-    onError: (error: any) => {
-      let errorMessage = "Something went wrong. Please try again.";
-      
-      if (error?.message) {
-        try {
-          const match = error.message.match(/\{.*\}/);
-          if (match) {
-            const parsed = JSON.parse(match[0]);
-            errorMessage = parsed.error || errorMessage;
-          }
-        } catch {
-          errorMessage = error.message;
-        }
-      }
-      
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email) {
-      newsletterMutation.mutate(email);
-    }
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const subscribe = async (event: React.FormEvent) => {
+    event.preventDefault(); setBusy(true); setMessage("");
+    try { await apiRequest("POST", "/api/newsletter", { email }); setEmail(""); setMessage("You're on the list. Thanks for joining!"); }
+    catch { setMessage("We couldn't subscribe this email. It may already be on the list; please try again if needed."); }
+    finally { setBusy(false); }
   };
-
-  return (
-    <footer className="bg-card border-t mt-20">
-      <div className="max-w-7xl mx-auto px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
-                <Leaf className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <span className="font-heading font-bold text-xl">The Crunch Era</span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-4">
-              Wholesome, delicious, and Crunch-Approved healthy food for families who care.
-            </p>
-          </div>
-
-          <div>
-            <h3 className="font-heading font-semibold text-lg mb-4">Company</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/about">
-                  <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-about">
-                    About Us
-                  </Button>
-                </Link>
-              </li>
-              <li>
-                <Link href="/products">
-                  <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-products">
-                    Our Products
-                  </Button>
-                </Link>
-              </li>
-              <li>
-                <Link href="/contact">
-                  <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-contact">
-                    Contact Us
-                  </Button>
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h3 className="font-heading font-semibold text-lg mb-4">Newsletter</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Get healthy eating tips and exclusive offers!
-            </p>
-            <form onSubmit={handleSubscribe} className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="Your email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="rounded-xl"
-                required
-                data-testid="input-footer-email"
-              />
-              <Button
-                type="submit"
-                className="rounded-xl"
-                disabled={newsletterMutation.isPending}
-                data-testid="button-footer-subscribe"
-              >
-                Subscribe
-              </Button>
-            </form>
-          </div>
-        </div>
-
-        <div className="border-t mt-8 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} The Crunch Era. All rights reserved.
-          </p>
-          <div className="flex gap-4 text-sm text-muted-foreground">
-            <Link href="/privacy-policy">
-              <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-privacy">
-                Privacy Policy
-              </Button>
-            </Link>
-            <Link href="/terms-of-service">
-              <Button variant="link" className="h-auto p-0 text-muted-foreground hover:text-foreground" data-testid="link-footer-terms">
-                Terms of Service
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </footer>
-  );
+  return <footer className="store-footer"><div className="shell">
+    <div className="footer-grid">
+      <div><BrandLogo /><p className="footer-brand-copy">For the love of a good crunch.<br />Ragi, oats, moong dal & mix veg chips.</p></div>
+      <div><h2>Explore</h2><Link href="/products">Shop all chips</Link><Link href="/about">Our story</Link><Link href="/orders">Your orders</Link><Link href="/contact">Contact us</Link></div>
+      <div><h2>Good to know</h2><Link href="/shipping">Shipping & offers</Link><Link href="/terms-of-service">Returns & terms</Link><Link href="/privacy-policy">Privacy policy</Link></div>
+      <div className="footer-newsletter"><h2>A little crunch in your inbox.</h2><p>Sign up for product news and offers.</p><form onSubmit={subscribe}><label className="sr-only" htmlFor="newsletter-email">Email address</label><input id="newsletter-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" /><button aria-label="Subscribe to newsletter" disabled={busy}><ArrowUpRight /></button></form><p role="status" className="fine-print">{message || "By subscribing, you agree to receive our emails. See our privacy policy."}</p></div>
+    </div>
+    <div className="footer-bottom"><span>© {new Date().getFullYear()} The Crunch Era</span><span>Crunch Better. Live Better.</span><span>Payments via Razorpay</span></div>
+  </div></footer>;
 }

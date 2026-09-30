@@ -76,7 +76,9 @@ export interface ShiprocketOrderItem {
 
 export interface CreateShiprocketOrderParams {
   orderId: string; // our own order id, used as Shiprocket's order_id
-  subtotal: number;
+  subtotal: number; // Merchandise subtotal after discount, excluding shipping.
+  shippingCharge: number;
+  discountAmount: number;
   customerName: string;
   customerEmail: string;
   customerPhone: string;
@@ -135,6 +137,8 @@ export async function createShiprocketOrder(params: CreateShiprocketOrderParams)
       })),
       payment_method: "Prepaid",
       sub_total: params.subtotal,
+      shipping_charges: params.shippingCharge,
+      total_discount: params.discountAmount,
       length: params.lengthCm,
       breadth: params.breadthCm,
       height: params.heightCm,
@@ -182,3 +186,4 @@ export async function trackShipment(awbCode: string) {
     trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
   };
 }
+

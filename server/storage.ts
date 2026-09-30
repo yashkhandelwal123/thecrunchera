@@ -221,6 +221,9 @@ export class MemStorage implements IStorage {
       ...insertOrder,
       id,
       status: "pending",
+      shippingCharge: insertOrder.shippingCharge ?? "0.00",
+      discountAmount: insertOrder.discountAmount ?? "0.00",
+      promoCode: insertOrder.promoCode ?? null,
       shippingAddressLine2: insertOrder.shippingAddressLine2 ?? null,
       razorpayOrderId: null,
       razorpayPaymentId: null,
@@ -473,15 +476,11 @@ export class DbStorage implements IStorage {
     items: Omit<InsertOrderItem, "orderId">[],
   ): Promise<Order> {
     const { db } = await import("./db");
-    const [order] = await db.insert(orders).values(insertOrder).returning();
-
-    if (items.length > 0) {
-      await db
-        .insert(orderItems)
-        .values(items.map((item) => ({ ...item, orderId: order.id })));
-    }
-
-    return order;
+    return db.transaction(async (tx) => {
+      const [order] = await tx.insert(orders).values(insertOrder).returning();
+      if (items.length > 0) await tx.insert(orderItems).values(items.map(item => ({ ...item, orderId: order.id })));
+      return order;
+    });
   }
 
   async getOrderById(id: string): Promise<Order | undefined> {
@@ -593,3 +592,4 @@ function createStorage(): IStorage {
 }
 
 export const storage = createStorage();
+
