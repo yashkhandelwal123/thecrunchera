@@ -587,9 +587,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
         shippingStatus: "Courier assigned",
       });
-      await storage.updateOrderStatus(order.id, "shipped");
+      const shippedOrder = await storage.updateOrderStatus(order.id, "shipped");
+      if (updated && shippedOrder) {
+        const { notifyCourierAssigned } = await import("./notifications");
+        await notifyCourierAssigned(shippedOrder);
+      }
 
-      res.json(updated);
+      res.json(shippedOrder ?? updated);
     } catch (error) {
       console.error("Shiprocket assign-courier error:", error);
       res.status(500).json({

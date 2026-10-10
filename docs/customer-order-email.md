@@ -25,3 +25,11 @@ Admin email, customer email and Telegram failures are isolated. Resend's returne
 Run `npm run check`, `npm run build`, and `node --import tsx --test server/customerOrderEmail.test.ts server/pricing.test.ts` in a test environment with DATABASE_URL unset. Tests use memory storage and mocked Resend requests; they do not send email or charge a payment.
 
 After deployment, complete a Razorpay test-mode purchase in a staging environment using an inbox you control. Verify the customer and admin emails, exact subject, correct totals, mobile readability, and Resend delivery status. Replay the signed payment callback/webhook and verify no duplicate email. Production inbox delivery cannot be established by the mocked tests.
+
+## Courier assignment email
+
+The website admin's Assign Courier action sends a separate customer email after the AWB/courier data is saved. Subject: `Tracking details for your The Crunch Era order 📦`. It includes the courier, AWB, tracking link and delivery address, without the internal order number. It says courier assigned, not picked up or out for delivery, and does not invent a delivery date. A shipment without an assigned AWB does not trigger mail. Refresh Tracking does not repeatedly send mail.
+
+The same Resend sender/support settings apply. A shipment-specific idempotency key protects repeated provider requests within Resend's retention period. Failures are logged without undoing the courier assignment; delivery is best-effort, as with order confirmation. Assignments made directly in the Shiprocket dashboard are not observed by this route; those would require a separate webhook integration.
+
+Regression test: `node --import tsx --test server/customerShipmentEmail.test.ts server/customerOrderEmail.test.ts`. All provider calls in these tests are mocked: no live shipment, wallet debit or email is created.

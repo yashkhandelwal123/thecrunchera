@@ -123,3 +123,16 @@ async function sendTelegramMessage(order: Order, items: OrderItem[]) {
   }
 }
 
+
+/** Email failure must not undo a successfully purchased courier assignment. */
+export async function notifyCourierAssigned(order: Order) {
+  try {
+    const { storage } = await import("./storage");
+    const customer = await storage.getUserById(order.userId);
+    if (!customer?.email) throw new Error("Order customer has no email address");
+    const { sendCustomerShipmentEmail } = await import("./customerShipmentEmail");
+    await sendCustomerShipmentEmail(order, customer.email);
+  } catch (error) {
+    console.error(`[notifications] Shipping email failed for order ${order.id}:`, error);
+  }
+}

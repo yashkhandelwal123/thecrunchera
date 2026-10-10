@@ -162,7 +162,7 @@ export async function assignAWB(shipmentId: string) {
     body: JSON.stringify({ shipment_id: shipmentId }),
   });
 
-  const response = data.response?.data;
+  const response = data?.response?.data;
   if (!response?.awb_code) {
     throw new Error(
       `Shiprocket did not return an AWB code: ${JSON.stringify(data)}`,
