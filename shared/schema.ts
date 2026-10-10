@@ -90,6 +90,10 @@ export const orders = pgTable("orders", {
   razorpayOrderId: text("razorpay_order_id"),
   razorpayPaymentId: text("razorpay_payment_id"),
 
+  shippingProvider: text("shipping_provider").notNull().default("shiprocket"),
+  shippingEnvironment: text("shipping_environment"),
+  shipmentBookingState: text("shipment_booking_state"), // booking, created, needs_review
+
   // Populated once a shipment is created via Shiprocket (admin "Ship Now")
   shiprocketOrderId: text("shiprocket_order_id"),
   shiprocketShipmentId: text("shiprocket_shipment_id"),
@@ -106,6 +110,9 @@ export const insertOrderSchema = createInsertSchema(orders).omit({
   status: true,
   razorpayOrderId: true,
   razorpayPaymentId: true,
+  shippingProvider: true,
+  shippingEnvironment: true,
+  shipmentBookingState: true,
   shiprocketOrderId: true,
   shiprocketShipmentId: true,
   awbCode: true,

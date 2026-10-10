@@ -1,13 +1,14 @@
 import type { Order } from "@shared/schema";
+import { shipmentTrackingUrl, shipmentNotificationKey } from "../shared/shipping";
 
 const escapeHtml = (value: string) => value.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
 
 export function customerShipmentEmail(order: Order, supportEmail?: string) {
-  if (!order.shiprocketShipmentId || !order.awbCode || !order.courierName) {
+  if ((order.shippingProvider !== "delhivery" && !order.shiprocketShipmentId) || !order.awbCode || !order.courierName) {
     throw new Error("Shipment, tracking number and courier are required for a shipping email");
   }
   // Build the URL from the AWB instead of trusting an arbitrary URL in stored data.
-  const trackingUrl = `https://shiprocket.co/tracking/${encodeURIComponent(order.awbCode)}`;
+  const trackingUrl = shipmentTrackingUrl(order);
   const subject = "Tracking details for your The Crunch Era order 📦";
   const address = [order.shippingName, order.shippingAddressLine1, order.shippingAddressLine2, `${order.shippingCity}, ${order.shippingState} – ${order.shippingPincode}`].filter((v): v is string => Boolean(v));
   const support = supportEmail ? `Need help? Contact us at ${supportEmail}.` : "Need help? Visit https://thecrunchera.com/contact.";
@@ -27,6 +28,6 @@ export async function sendCustomerShipmentEmail(order: Order, customerEmail: str
     to: customerEmail,
     ...(supportEmail ? { replyTo: supportEmail } : {}),
     ...email,
-  }, { idempotencyKey: `customer-courier-assigned/${order.id}/${order.shiprocketShipmentId}` });
+  }, { idempotencyKey: `customer-courier-assigned/${order.id}/${shipmentNotificationKey(order)}` });
   if (error) throw new Error(`Shipping email rejected by Resend: ${error.name}: ${error.message}`);
 }

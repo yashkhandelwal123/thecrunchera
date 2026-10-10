@@ -1,4 +1,5 @@
 import type { Order, OrderItem } from "@shared/schema";
+import { shipmentTrackingUrl, shipmentNotificationKey } from "../shared/shipping";
 
 // Notification recipients only; never used for admin-panel authorization.
 export function adminNotificationRecipients(): string[] {
@@ -162,7 +163,7 @@ async function notifyAdminCourierAssigned(order: Order) {
     const { customerShipmentEmail } = await import("./customerShipmentEmail");
     // Use the same required-data validation as the customer message.
     customerShipmentEmail(order);
-    const trackingUrl = `https://shiprocket.co/tracking/${encodeURIComponent(order.awbCode!)}`;
+    const trackingUrl = shipmentTrackingUrl(order);
     const text = [
       "Courier assigned — The Crunch Era",
       `Order: ${order.id}`,
@@ -185,7 +186,7 @@ async function notifyAdminCourierAssigned(order: Order) {
       subject: "Courier assigned — The Crunch Era",
       text,
       html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
-    }, { idempotencyKey: `admin-courier-assigned/${order.id}/${order.shiprocketShipmentId}` });
+    }, { idempotencyKey: `admin-courier-assigned/${order.id}/${shipmentNotificationKey(order)}` });
     if (error) throw new Error(`${error.name}: ${error.message}`);
   } catch (error) {
     console.error(`[notifications] Admin shipping email failed for order ${order.id}:`, error);

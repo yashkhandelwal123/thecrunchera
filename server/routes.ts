@@ -4,6 +4,8 @@ import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
 import { storage } from "./storage";
 import { quoteCart, PricingError } from "./pricing";
+import { shipmentTrackingUrl } from "../shared/shipping";
+import { delhiveryConfig, parcelSchema, checkDelhiveryServiceability, createDelhiveryShipment, trackDelhiveryShipment } from "./delhivery";
 import { publicProduct } from "../shared/catalog";
 import { registerSeoRoutes } from "./seo";
 import { insertNewsletterSchema, insertContactSchema, checkoutSchema, quoteSchema } from "@shared/schema";
@@ -481,6 +483,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  app.get("/api/admin/shipping/providers", requireAdmin, (_req, res) => {
+    try {
+      const config = delhiveryConfig();
+      res.json({ delhiveryAvailable: true, delhiveryEnvironment: config.environment });
+    } catch {
+      res.json({ delhiveryAvailable: false, delhiveryEnvironment: null });
+    }
+  });
+
+  app.post("/api/admin/orders/:id/create-delhivery-shipment", requireAdmin, async (req, res) => {
+    let claimed = false;
+    try {
+      const parcel = parcelSchema.safeParse(req.body);
+      if (!parcel.success) return res.status(400).json({ error: "Enter the actual positive packed weight and all three dimensions, and choose Surface or Express." });
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      if (order.status !== "paid") return res.status(400).json({ error: "Only paid orders can be booked" });
+      if (order.shiprocketShipmentId || order.awbCode || order.shipmentBookingState) return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider before booking again." });
+      if (Number(order.total) >= 50000) return res.status(400).json({ error: "This high-value shipment needs invoice/e-waybill review. Book it through Delhivery One." });
+      const config = delhiveryConfig();
+      const items = await storage.getOrderItems(order.id);
+      if (!items.length) return res.status(400).json({ error: "Cannot ship an order without items" });
+      await checkDelhiveryServiceability(order.shippingPincode);
+      const booking = await storage.claimShipmentBooking(order.id, "delhivery", config.environment);
+      if (!booking) return res.status(409).json({ error: "Another booking has started. Refresh this order before proceeding." });
+      claimed = true;
+      const shipment = await createDelhiveryShipment(order, items, parcel.data);
+      const updated = await storage.updateOrderShipping(order.id, {
+        ...shipment, shipmentBookingState: "created",
+        trackingUrl: shipmentTrackingUrl({ shippingProvider: "delhivery", awbCode: shipment.awbCode }),
+        shippingStatus: "Courier assigned — arrange pickup in Delhivery One",
+      });
+      if (!updated) throw new Error("Booking accepted but order could not be saved; reconcile in Delhivery One");
+      // Sandbox bookings must never send real dispatch emails.
+      if (config.environment === "production") {
+        const { notifyCourierAssigned } = await import("./notifications");
+        await notifyCourierAssigned(updated);
+      }
+      res.json(updated);
+    } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
+      res.status(claimed ? 502 : 400).json({ error: error instanceof Error ? error.message : "Delhivery shipment could not be created" });
+    }
+  });
+
   // Admin: create a Shiprocket shipment for a paid order and assign a
   // courier, in one action ("Ship Now"). Weight/dimensions are supplied by
   // the admin per-order since actual packed weight varies by order size.
@@ -491,9 +538,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // this step is kept separate and free to let you inspect/verify before
   // committing to that cost.
   app.post("/api/admin/orders/:id/create-shipment", requireAdmin, async (req, res) => {
+    let claimed = false;
     try {
       const { weightKg, lengthCm, breadthCm, heightCm } = req.body;
-      if (!weightKg || !lengthCm || !breadthCm || !heightCm) {
+      if (!parcelSchema.safeParse({ weightKg, lengthCm, breadthCm, heightCm }).success) {
         return res.status(400).json({
           error: "weightKg, lengthCm, breadthCm, and heightCm are all required",
         });
@@ -508,8 +556,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: `Can only ship paid orders (this order is ${order.status})`,
         });
       }
-      if (order.shiprocketShipmentId) {
-        return res.status(400).json({ error: "A shipment already exists for this order" });
+      if (order.shiprocketShipmentId || order.awbCode || order.shipmentBookingState) {
+        return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider first." });
       }
 
       const [items, customer] = await Promise.all([
@@ -519,6 +567,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const { createShiprocketOrder } = await import("./shiprocket");
 
+      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD || !process.env.SHIPROCKET_PICKUP_LOCATION) {
+        return res.status(400).json({ error: "Shiprocket account credentials and pickup location must be configured before booking." });
+      }
+      const booking = await storage.claimShipmentBooking(order.id, "shiprocket", "production");
+      if (!booking) return res.status(409).json({ error: "Another shipment booking has started. Refresh the order." });
+      claimed = true;
       const { shiprocketOrderId, shipmentId } = await createShiprocketOrder({
         orderId: order.id,
         subtotal: Number((Number(order.subtotal) - Number(order.discountAmount)).toFixed(2)),
@@ -546,12 +600,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updated = await storage.updateOrderShipping(order.id, {
         shiprocketOrderId,
+        shipmentBookingState: "created",
         shiprocketShipmentId: shipmentId,
         shippingStatus: "Shipment created — courier not yet assigned",
       });
 
       res.json(updated);
     } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
       console.error("Shiprocket create-shipment error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to create shipment",
@@ -569,7 +625,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
-      if (!order.shiprocketShipmentId) {
+      if (order.shippingProvider === "delhivery" || !order.shiprocketShipmentId) {
         return res.status(400).json({
           error: "No shipment exists yet for this order — create one first",
         });
@@ -612,7 +668,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { trackShipment } = await import("./shiprocket");
-      const { status } = await trackShipment(order.awbCode);
+      const { status } = order.shippingProvider === "delhivery"
+        ? await trackDelhiveryShipment(order)
+        : await trackShipment(order.awbCode);
 
       const updated = await storage.updateOrderShipping(order.id, {
         shippingStatus: status,
