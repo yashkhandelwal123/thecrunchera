@@ -11,3 +11,33 @@ export function shipmentTrackingUrl(order: Pick<Order, "shippingProvider" | "awb
 export function shipmentNotificationKey(order: Order): string {
   return order.shippingProvider === "delhivery" ? `delhivery/${order.awbCode}` : String(order.shiprocketShipmentId);
 }
+
+export interface ShippingParcel {
+  weightKg: number;
+  lengthCm: number;
+  breadthCm: number;
+  heightCm: number;
+  shippingMode: "Surface" | "Express";
+}
+export interface ShippingRate {
+  id: string;
+  provider: "shiprocket" | "delhivery";
+  service: string;
+  amount: number;
+  currency: "INR";
+  estimatedDays?: string;
+  chargeableWeightKg: number;
+  courierId?: number;
+  shippingMode?: "Surface" | "Express";
+  taxNote: string;
+}
+export interface ShippingPlan {
+  id: string;
+  orderId: string;
+  parcel: ShippingParcel;
+  rates: ShippingRate[];
+  warnings: string[];
+  expiresAt: string;
+  fingerprint: string;
+  archivedShiprocketIds?: string[];
+}

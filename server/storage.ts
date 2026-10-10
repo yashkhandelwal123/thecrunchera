@@ -19,7 +19,7 @@ import {
   orderItems,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, or } from "drizzle-orm";
 
 export interface IStorage {
   // Products
@@ -52,14 +52,15 @@ export interface IStorage {
   setOrderRazorpayOrderId(id: string, razorpayOrderId: string): Promise<Order | undefined>;
   markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined>;
   claimShipmentBooking(id: string, provider: "shiprocket" | "delhivery", environment: string): Promise<Order | undefined>;
+  claimShipmentAction(id: string, shipmentId: string, action: string): Promise<Order | undefined>;
   updateOrderShipping(
     id: string,
     shipping: {
       shippingProvider?: string;
       shippingEnvironment?: string;
-      shipmentBookingState?: string;
-      shiprocketOrderId?: string;
-      shiprocketShipmentId?: string;
+      shipmentBookingState?: string | null;
+      shiprocketOrderId?: string | null;
+      shiprocketShipmentId?: string | null;
       awbCode?: string;
       courierName?: string;
       trackingUrl?: string;
@@ -315,14 +316,22 @@ export class MemStorage implements IStorage {
     return updated;
   }
 
+  async claimShipmentAction(id: string, shipmentId: string, action: string): Promise<Order | undefined> {
+    const order = this.orders.get(id);
+    if (!order || order.status !== "paid" || order.awbCode || order.shiprocketShipmentId !== shipmentId || (order.shipmentBookingState && order.shipmentBookingState !== "created")) return undefined;
+    const updated = { ...order, shipmentBookingState: action };
+    this.orders.set(id, updated);
+    return updated;
+  }
+
   async updateOrderShipping(
     id: string,
     shipping: {
       shippingProvider?: string;
       shippingEnvironment?: string;
-      shipmentBookingState?: string;
-      shiprocketOrderId?: string;
-      shiprocketShipmentId?: string;
+      shipmentBookingState?: string | null;
+      shiprocketOrderId?: string | null;
+      shiprocketShipmentId?: string | null;
       awbCode?: string;
       courierName?: string;
       trackingUrl?: string;
@@ -585,14 +594,21 @@ export class DbStorage implements IStorage {
     return order;
   }
 
+  async claimShipmentAction(id: string, shipmentId: string, action: string): Promise<Order | undefined> {
+    const { db } = await import("./db");
+    const [order] = await db.update(orders).set({ shipmentBookingState: action })
+      .where(and(eq(orders.id, id), eq(orders.status, "paid"), eq(orders.shiprocketShipmentId, shipmentId), isNull(orders.awbCode), or(isNull(orders.shipmentBookingState), eq(orders.shipmentBookingState, "created")))).returning();
+    return order;
+  }
+
   async updateOrderShipping(
     id: string,
     shipping: {
       shippingProvider?: string;
       shippingEnvironment?: string;
-      shipmentBookingState?: string;
-      shiprocketOrderId?: string;
-      shiprocketShipmentId?: string;
+      shipmentBookingState?: string | null;
+      shiprocketOrderId?: string | null;
+      shiprocketShipmentId?: string | null;
       awbCode?: string;
       courierName?: string;
       trackingUrl?: string;

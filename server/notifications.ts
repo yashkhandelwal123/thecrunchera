@@ -172,7 +172,7 @@ async function notifyAdminCourierAssigned(order: Order) {
       `Courier: ${order.courierName}`,
       `Tracking number (AWB): ${order.awbCode}`,
       `Track parcel: ${trackingUrl}`,
-      "Status: Courier assigned. Pickup is not yet confirmed.",
+      `Status: ${order.shippingStatus || "Courier assigned — pickup not yet confirmed"}`,
       "Delivery address:",
       order.shippingAddressLine1,
       order.shippingAddressLine2,

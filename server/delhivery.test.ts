@@ -1,3 +1,5 @@
+import { saveShippingPlan } from "./shippingPlanStore";
+import { shippingFingerprint } from "./shippingQuotes";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
@@ -59,9 +61,11 @@ test("Delhivery routes: admin-only, disabled setup, safe booking, provider isola
   }) as typeof fetch;
   const create = async () => {
     const order = await storage.createOrder({ ...address, userId: buyer.id, subtotal: "490.00", shippingCharge: "0.00", discountAmount: "49.00", total: "441.00" }, [item]);
-    await storage.markOrderPaid(order.id, "mock-payment"); return order;
+    await storage.markOrderPaid(order.id, "mock-payment");
+    await saveShippingPlan({ id: order.id, orderId: order.id, parcel: parcelSchema.parse(parcel), fingerprint: shippingFingerprint(order), expiresAt: new Date(Date.now()+60000).toISOString(), warnings: [], rates: [{id: 'delhivery:Surface', provider: 'delhivery', service: 'Surface', amount: 50, currency: 'INR', chargeableWeightKg: 1.2, shippingMode: 'Surface', taxNote: 'Fixture'}] });
+    return order;
   };
-  const post = (id: string, action = "create-delhivery-shipment", body: unknown = parcel, auth = true) => fetch(`${base}/api/admin/orders/${id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", ...(auth ? { "x-qa-admin": "1" } : {}) }, body: JSON.stringify(body) });
+  const post = (id: string, action = "create-delhivery-shipment", body: unknown = { planId: id, rateId: "delhivery:Surface" }, auth = true) => fetch(`${base}/api/admin/orders/${id}/${action}`, { method: "POST", headers: { "Content-Type": "application/json", ...(auth ? { "x-qa-admin": "1" } : {}) }, body: JSON.stringify(body) });
   try {
     const order = await create();
     assert.equal((await post(order.id, undefined, parcel, false)).status, 403);
@@ -75,7 +79,7 @@ test("Delhivery routes: admin-only, disabled setup, safe booking, provider isola
     assert.ok(booked?.trackingUrl?.startsWith("https://www.delhivery.com/track/package/"));
     assert.equal(sent.length, 2); assert.ok(sent.every(mail => mail.text.includes("delhivery.com/track/package/")));
     assert.ok(!customerShipmentEmail(booked!).text.includes("shiprocket.co"));
-    assert.equal((await post(order.id, "create-shipment")).status, 409); assert.equal((await post(order.id, "assign-courier")).status, 400);
+    assert.equal((await post(order.id, "create-shipment", parcel)).status, 409); assert.equal((await post(order.id, "assign-courier")).status, 400);
     const refreshed = await post(order.id, "refresh-tracking"); assert.equal(refreshed.status, 200); assert.equal((await refreshed.json()).shippingStatus, "In Transit");
     assert.equal(sent.length, 2);
     const shiprocketOrder = await create(); await storage.updateOrderShipping(shiprocketOrder.id, { shiprocketShipmentId: "existing-shiprocket" });

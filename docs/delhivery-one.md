@@ -59,3 +59,31 @@ Tests use in-memory storage and mocked provider requests. Run with DATABASE_URL 
 - https://one.delhivery.com/developer-portal/document/b2c/detail/faq
 - https://delhivery-express-api-doc.readme.io/reference/1-pincode-servicability-api
 - https://help.delhivery.com/docs/api-token-generation
+
+## Admin shipment preparation and rate comparison
+
+Apply `migrations/0003_shipping_plans.sql` to the same database used by Render before deploying this change. It creates an admin-only JSONB table; it does not alter checkout totals or existing shipments.
+
+Add server environment variable `DELHIVERY_PICKUP_PINCODE` with the actual six-digit pincode of the warehouse named in `DELHIVERY_PICKUP_LOCATION`. Do not use the customer's pincode. Live estimates require `DELHIVERY_ENVIRONMENT=production` and a live account with rate API access. Shiprocket origin pincode is read from the pickup address matching `SHIPROCKET_PICKUP_LOCATION`; no extra Shiprocket pincode variable is required.
+
+Workflow:
+1. On a paid order without an AWB, choose **Prepare shipment / compare prices**.
+2. Enter actual packed box weight and dimensions. Save preparation and compare rates. This only reads carrier APIs and saves a local preparation; it creates no shipment and sends no email.
+3. Choose a carrier. For a new Shiprocket order the first action creates its draft only; reopen comparison to assign the chosen courier afterward. Delhivery booking creates the shipment and AWB together, after explicit confirmation.
+4. Arrange pickup/download labels on the chosen provider's platform. AWB assignment alone no longer marks an order shipped.
+
+Quotes expire after 15 minutes. Delhivery uses the higher of dead weight and box volumetric weight (cm³ / 5000), converted to grams for its estimate API. Provider assessments can differ. Shiprocket rates show its reported rate and explicit tax caveat; Delhivery shows its returned total amount. These are estimates, not guaranteed final invoices. Partial provider failures show warnings; missing rates are never shown as zero/free shipping. Customers do not receive or see the admin rate plan.
+
+Existing unassigned Shiprocket draft:
+- Enter measurements matching the existing draft to compare/assign Shiprocket rates.
+- To choose Delhivery, cancel that draft in Shiprocket yourself, then use **Verify Shiprocket cancellation**. The website checks the order/shipment reference, absence of AWB and cancelled status, archives the old reference and unlocks new booking. No cancellation happens automatically.
+- If an AWB is already assigned in Shiprocket, switching is blocked. Reconcile that shipment; never book the same parcel twice.
+
+Delhivery One manual booking:
+- Prepare locally, then book on Delhivery One with the full website order UUID as the order/reference number.
+- Paste the AWB into **Verify & link existing AWB**. The website validates the provider reference, links tracking, and sends existing customer/admin tracking emails. It does not book again. Repeated imports of the same linked AWB do not resend.
+- Provider statuses are shown in tracking emails, including when a manually booked parcel is already in transit.
+
+Uncertain booking outcomes remain locked for review. Check the provider dashboard before recovery. This release does not automatically recover ambiguous bookings or sync a manually assigned Shiprocket AWB. Carrier credentials, account entitlement, actual wallet debit, live database migration and email delivery require a live-account smoke test; mocked tests cannot verify them.
+
+Validation: TypeScript, production build and mocked integration tests cover access controls, rates, expired/invalid selection, duplicate assignment, partial/empty responses, verified cancellation, AWB ownership and unchanged customer totals. No test creates a real shipment or sends a real email.

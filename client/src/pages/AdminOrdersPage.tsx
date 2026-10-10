@@ -1,10 +1,9 @@
+import ShippingPlanner from "@/components/ShippingPlanner";
 import { useEffect, useState } from "react";
 import { fetchApi, readApiJson } from "@/lib/apiResponse";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -15,7 +14,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw, PackageCheck } from "lucide-react";
+import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw } from "lucide-react";
 
 interface AdminOrder {
   id: string;
@@ -109,89 +108,9 @@ export default function AdminOrdersPage() {
     }
   };
 
-  const [provider, setProvider] = useState("shiprocket");
-  const [delhivery, setDelhivery] = useState({ delhiveryAvailable: false, delhiveryEnvironment: null as string | null });
-  useEffect(() => {
-    if (!user) return;
-    fetchApi("/api/admin/shipping/providers", { credentials: "include" })
-      .then(res => { if (!res.ok) throw new Error(); return readApiJson(res); })
-      .then(setDelhivery).catch(() => setDelhivery({ delhiveryAvailable: false, delhiveryEnvironment: null }));
-  }, [user]);
   const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
-  const [shipForm, setShipForm] = useState({
-    weightKg: "",
-    lengthCm: "",
-    breadthCm: "",
-    heightCm: "",
-    shippingMode: "Surface",
-  });
-  const [isShipping, setIsShipping] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
-
-  const openShipForm = (orderId: string) => {
-    setShippingOrderId(orderId);
-    setProvider("shiprocket");
-    setShipForm({ weightKg: "", lengthCm: "", breadthCm: "", heightCm: "", shippingMode: "Surface" });
-  };
-
-  const submitShipment = async (orderId: string) => {
-    setIsShipping(true);
-    try {
-      const res = await fetchApi(`/api/admin/orders/${orderId}/${provider === "delhivery" ? "create-delhivery-shipment" : "create-shipment"}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(shipForm),
-      });
-      const data = await readApiJson(res);
-      if (!res.ok) throw new Error(data.error || "Failed to create shipment");
-
-      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
-      setShippingOrderId(null);
-      toast({
-        title: "Shipment created",
-        description: provider === "delhivery" ? "Delhivery AWB created. Arrange pickup and download the label in Delhivery One." : "Shipment created in Shiprocket. Assign a courier when ready to ship.",
-      });
-    } catch (err) {
-      setShippingOrderId(null);
-      loadOrders(); // Show any persisted booking/review guard after a failed response.
-      toast({
-        title: "Couldn't create shipment",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShipping(false);
-    }
-  };
-
-  const [assigningId, setAssigningId] = useState<string | null>(null);
-
-  const assignCourier = async (orderId: string) => {
-    setAssigningId(orderId);
-    try {
-      const res = await fetchApi(`/api/admin/orders/${orderId}/assign-courier`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await readApiJson(res);
-      if (!res.ok) throw new Error(data.error || "Failed to assign courier");
-
-      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
-      toast({
-        title: "Courier assigned",
-        description: `${data.courierName} — AWB ${data.awbCode}`,
-      });
-    } catch (err) {
-      toast({
-        title: "Couldn't assign courier",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-        variant: "destructive",
-      });
-    } finally {
-      setAssigningId(null);
-    }
-  };
+  const openShipForm = (id: string) => setShippingOrderId(id);
 
   const refreshTracking = async (orderId: string) => {
     setRefreshingId(orderId);
@@ -310,7 +229,7 @@ export default function AdminOrdersPage() {
                       </SelectContent>
                     </Select>
 
-                    {order.status === "paid" && !order.shiprocketShipmentId && !order.awbCode && !order.shipmentBookingState && (
+                    {order.status === "paid" && !order.awbCode && (!order.shipmentBookingState || order.shipmentBookingState === "created") && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -318,34 +237,13 @@ export default function AdminOrdersPage() {
                         data-testid={`button-ship-${order.id}`}
                       >
                         <Truck className="w-4 h-4 mr-1" />
-                        Create shipment
+                        Prepare shipment / compare prices
                       </Button>
                     )}
 
-                    {order.shipmentBookingState && ["booking", "needs_review"].includes(order.shipmentBookingState) && (
+                    {order.shipmentBookingState && ["booking", "needs_review", "assigning", "releasing"].includes(order.shipmentBookingState) && (
                       <p className="text-sm text-amber-800 max-w-sm">Booking in progress or awaiting review. Check {order.shippingProvider === "delhivery" ? "Delhivery One" : "Shiprocket"} before retrying; contact support to reconcile the booking.</p>
                     )}
-                    {order.shiprocketShipmentId && order.shippingProvider !== "delhivery" && !order.awbCode && (
-                      <div className="text-xs text-right space-y-1.5">
-                        <div className="text-muted-foreground">
-                          Shipment created, no courier yet
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => assignCourier(order.id)}
-                          disabled={assigningId === order.id}
-                          data-testid={`button-assign-courier-${order.id}`}
-                        >
-                          {assigningId === order.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                          ) : (
-                            <PackageCheck className="w-4 h-4 mr-1" />
-                          )}
-                          Assign Courier (billable)
-                        </Button>
-                      </div>
-                    )}
-
                     {order.awbCode && (
                       <div className="text-xs text-right space-y-1">
                         <div className="font-medium">{order.courierName}</div>
@@ -381,98 +279,7 @@ export default function AdminOrdersPage() {
                 </div>
 
                 {shippingOrderId === order.id && (
-                  <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                    <div className="col-span-2 md:col-span-5 space-y-3">
-                      <Label htmlFor={`provider-${order.id}`}>Shipment provider</Label>
-                      <select id={`provider-${order.id}`} value={provider} onChange={e => setProvider(e.target.value)} disabled={isShipping} className="block w-full rounded-md border p-3 bg-background">
-                        <option value="shiprocket">Shiprocket</option>
-                        <option value="delhivery" disabled={!delhivery.delhiveryAvailable}>Delhivery One{!delhivery.delhiveryAvailable ? " — setup required" : ` — ${delhivery.delhiveryEnvironment}`}</option>
-                      </select>
-                      <p className="text-sm text-muted-foreground">Enter the weight and dimensions of the complete packed parcel. Carrier charges depend on your account rates and billable weight.</p>
-                      {provider === "delhivery" && <>
-                        <Label htmlFor={`mode-${order.id}`}>Delhivery service</Label>
-                        <select id={`mode-${order.id}`} value={shipForm.shippingMode} onChange={e => setShipForm(f => ({ ...f, shippingMode: e.target.value }))} className="block rounded-md border p-3 bg-background">
-                          <option value="Surface">Surface</option><option value="Express">Express</option>
-                        </select>
-                        <p className="text-sm">Creates a Delhivery booking and AWB; account charges may apply. Pickup and labels are managed in Delhivery One. {delhivery.delhiveryEnvironment === "staging" ? "TEST MODE: no customer or admin emails will be sent." : "Customer and admin tracking emails will be sent."}</p>
-                      </>}
-                    </div>
-                    <div>
-                      <Label htmlFor={`weight-${order.id}`} className="text-xs">
-                        Weight (kg)
-                      </Label>
-                      <Input
-                        id={`weight-${order.id}`}
-                        type="number"
-                        step="0.01"
-                        value={shipForm.weightKg}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, weightKg: e.target.value }))
-                        }
-                        data-testid={`input-weight-${order.id}`}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`length-${order.id}`} className="text-xs">
-                        Length (cm)
-                      </Label>
-                      <Input
-                        id={`length-${order.id}`}
-                        type="number"
-                        value={shipForm.lengthCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, lengthCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`breadth-${order.id}`} className="text-xs">
-                        Breadth (cm)
-                      </Label>
-                      <Input
-                        id={`breadth-${order.id}`}
-                        type="number"
-                        value={shipForm.breadthCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, breadthCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`height-${order.id}`} className="text-xs">
-                        Height (cm)
-                      </Label>
-                      <Input
-                        id={`height-${order.id}`}
-                        type="number"
-                        value={shipForm.heightCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, heightCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => submitShipment(order.id)}
-                        disabled={isShipping || Object.entries(shipForm).some(([key, value]) => key !== "shippingMode" && (!Number.isFinite(Number(value)) || Number(value) <= 0))}
-                        data-testid={`button-confirm-ship-${order.id}`}
-                      >
-                        {isShipping ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          provider === "delhivery" ? "Book Delhivery" : "Create shipment"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setShippingOrderId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
+                  <ShippingPlanner order={order} onChanged={() => { setShippingOrderId(null); loadOrders(); }} />
                 )}
               </Card>
             ))}

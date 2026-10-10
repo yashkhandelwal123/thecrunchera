@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
+import { registerShippingPlannerRoutes } from "./shippingPlannerRoutes";
+import { selectedShippingRate } from "./shippingQuotes";
 import { storage } from "./storage";
 import { quoteCart, PricingError } from "./pricing";
 import { shipmentTrackingUrl } from "../shared/shipping";
@@ -483,6 +485,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  registerShippingPlannerRoutes(app, requireAdmin);
+
   app.get("/api/admin/shipping/providers", requireAdmin, (_req, res) => {
     try {
       const config = delhiveryConfig();
@@ -495,13 +499,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/orders/:id/create-delhivery-shipment", requireAdmin, async (req, res) => {
     let claimed = false;
     try {
-      const parcel = parcelSchema.safeParse(req.body);
-      if (!parcel.success) return res.status(400).json({ error: "Enter the actual positive packed weight and all three dimensions, and choose Surface or Express." });
       const order = await storage.getOrderById(req.params.id);
       if (!order) return res.status(404).json({ error: "Order not found" });
       if (order.status !== "paid") return res.status(400).json({ error: "Only paid orders can be booked" });
       if (order.shiprocketShipmentId || order.awbCode || order.shipmentBookingState) return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider before booking again." });
       if (Number(order.total) >= 50000) return res.status(400).json({ error: "This high-value shipment needs invoice/e-waybill review. Book it through Delhivery One." });
+      const selected = await selectedShippingRate(order, req.body, "delhivery");
       const config = delhiveryConfig();
       const items = await storage.getOrderItems(order.id);
       if (!items.length) return res.status(400).json({ error: "Cannot ship an order without items" });
@@ -509,7 +512,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const booking = await storage.claimShipmentBooking(order.id, "delhivery", config.environment);
       if (!booking) return res.status(409).json({ error: "Another booking has started. Refresh this order before proceeding." });
       claimed = true;
-      const shipment = await createDelhiveryShipment(order, items, parcel.data);
+      const shipment = await createDelhiveryShipment(order, items, selected.parcel);
       const updated = await storage.updateOrderShipping(order.id, {
         ...shipment, shipmentBookingState: "created",
         trackingUrl: shipmentTrackingUrl({ shippingProvider: "delhivery", awbCode: shipment.awbCode }),
@@ -540,7 +543,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/admin/orders/:id/create-shipment", requireAdmin, async (req, res) => {
     let claimed = false;
     try {
-      const { weightKg, lengthCm, breadthCm, heightCm } = req.body;
+      let { weightKg, lengthCm, breadthCm, heightCm } = req.body;
       if (!parcelSchema.safeParse({ weightKg, lengthCm, breadthCm, heightCm }).success) {
         return res.status(400).json({
           error: "weightKg, lengthCm, breadthCm, and heightCm are all required",
@@ -560,11 +563,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider first." });
       }
 
+      if (req.body.planId) {
+        const selected = await selectedShippingRate(order, req.body, "shiprocket");
+        ({ weightKg, lengthCm, breadthCm, heightCm } = selected.parcel);
+      }
       const [items, customer] = await Promise.all([
         storage.getOrderItems(order.id),
         storage.getUserById(order.userId),
       ]);
 
+      if (!items.length) return res.status(400).json({ error: "Cannot ship an order without items" });
       const { createShiprocketOrder } = await import("./shiprocket");
 
       if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD || !process.env.SHIPROCKET_PICKUP_LOCATION) {
@@ -620,6 +628,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // courier slot — typically deducts from your Shiprocket wallet balance.
   // Only call this when you're actually ready to ship the package.
   app.post("/api/admin/orders/:id/assign-courier", requireAdmin, async (req, res) => {
+    let claimed = false;
     try {
       const order = await storage.getOrderById(req.params.id);
       if (!order) {
@@ -634,16 +643,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "A courier is already assigned to this order" });
       }
 
-      const { assignAWB } = await import("./shiprocket");
-      const { awbCode, courierName } = await assignAWB(order.shiprocketShipmentId);
+      const selected = await selectedShippingRate(order, req.body, "shiprocket");
+      const { assignAWB, inspectShiprocketDraft } = await import("./shiprocket");
+      if (!await storage.claimShipmentAction(order.id, order.shiprocketShipmentId, "assigning")) return res.status(409).json({ error: "Another shipment operation is running or the order is no longer paid." });
+      claimed = true;
+      const draft = await inspectShiprocketDraft(order, selected.parcel);
+      if (/cancel/i.test(draft.status)) throw new Error("This Shiprocket draft was cancelled. Verify cancellation first.");
+      const { awbCode, courierName } = await assignAWB(order.shiprocketShipmentId, selected.rate.courierId);
 
       const updated = await storage.updateOrderShipping(order.id, {
         awbCode,
         courierName,
         trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
-        shippingStatus: "Courier assigned",
+        shipmentBookingState: "created",
+        shippingStatus: "Courier assigned — pickup not yet confirmed",
       });
-      const shippedOrder = await storage.updateOrderStatus(order.id, "shipped");
+      const shippedOrder = updated; // AWB assignment does not prove pickup.
       if (updated && shippedOrder) {
         const { notifyCourierAssigned } = await import("./notifications");
         await notifyCourierAssigned(shippedOrder);
@@ -651,8 +666,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json(shippedOrder ?? updated);
     } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
       console.error("Shiprocket assign-courier error:", error);
-      res.status(500).json({
+      res.status(claimed ? 502 : 400).json({
         error: error instanceof Error ? error.message : "Failed to assign courier",
       });
     }

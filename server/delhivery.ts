@@ -88,3 +88,34 @@ export async function trackDelhiveryShipment(order: Order) {
   if (typeof status !== "string" || !status.trim()) throw new Error("Delhivery has not returned a tracking status for this AWB yet");
   return { status };
 }
+
+/** Read-only estimate; rate endpoint expects chargeable weight in grams. */
+export async function delhiveryRates(order: Order, parcel: Parcel): Promise<import("../shared/shipping").ShippingRate[]> {
+  if (delhiveryConfig().environment !== "production") throw new Error("Delhivery does not provide usable shipping rates in staging. Configure live credentials for rate estimates.");
+  const origin = process.env.DELHIVERY_PICKUP_PINCODE?.trim();
+  if (!origin || !/^[1-9]\d{5}$/.test(origin)) throw new Error("Set DELHIVERY_PICKUP_PINCODE to the pincode of your registered pickup warehouse.");
+  await checkDelhiveryServiceability(order.shippingPincode);
+  const kg = Math.max(parcel.weightKg, parcel.lengthCm * parcel.breadthCm * parcel.heightCm / 5000);
+  const results = await Promise.allSettled((["Surface", "Express"] as const).map(async mode => {
+    const query = new URLSearchParams({ md: mode === "Surface" ? "S" : "E", ss: "Delivered", d_pin: order.shippingPincode, o_pin: origin, cgm: String(Math.ceil(kg * 1000)), pt: "Pre-paid" });
+    const data = await request(`/api/kinko/v1/invoice/charges/.json?${query}`);
+    const charge = Array.isArray(data) ? data[0] : data;
+    const amount = Number(charge?.total_amount);
+    if (!Number.isFinite(amount) || amount <= 0) throw new Error(`No valid Delhivery ${mode} rate returned`);
+    return { id: `delhivery:${mode}`, provider: "delhivery" as const, service: `Delhivery ${mode}`, amount, currency: "INR" as const, chargeableWeightKg: kg, shippingMode: mode, taxNote: "Estimated total includes taxes returned by Delhivery; final billed weight/charges may differ." };
+  }));
+  const rates = results.flatMap(result => result.status === "fulfilled" ? [result.value] : []);
+  if (!rates.length) throw new Error("Delhivery could not return Surface or Express rates. Check account API access and pickup pincode.");
+  return rates;
+}
+
+/** Verify ownership by provider reference, not by a manually typed tracking URL. */
+export async function verifyDelhiveryBooking(order: Order, awb: string) {
+  if (!/^\d{8,30}$/.test(awb)) throw new Error("Enter a valid numeric Delhivery AWB");
+  const data = await request(`/api/v1/packages/json/?waybill=${encodeURIComponent(awb)}`);
+  const shipment = Array.isArray(data?.ShipmentData) ? data.ShipmentData.find((entry: any) => String(entry?.Shipment?.AWB) === awb)?.Shipment : undefined;
+  if (!shipment || String(shipment.ReferenceNo) !== order.id) throw new Error("This AWB does not match this website order. Use the full website order ID as the reference in Delhivery One.");
+  const status = shipment.Status?.Status;
+  if (typeof status !== "string" || !status.trim() || /cancel|return|rto|dto/i.test(status)) throw new Error("This Delhivery booking is not an active forward shipment");
+  return { awbCode: awb, courierName: "Delhivery", shippingStatus: status };
+}

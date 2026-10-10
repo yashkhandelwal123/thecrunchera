@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, integer, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -190,3 +190,9 @@ export interface Testimonial {
   avatar?: string;
 }
 
+
+// Admin-only carrier estimates and local parcel drafts; never included in customer order responses.
+export const shippingPlans = pgTable("shipping_plans", {
+  orderId: varchar("order_id").primaryKey().references(() => orders.id),
+  plan: jsonb("plan").notNull().$type<import("./shipping").ShippingPlan>(),
+});

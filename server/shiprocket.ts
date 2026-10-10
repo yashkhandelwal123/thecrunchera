@@ -49,6 +49,7 @@ async function shiprocketRequest(path: string, options: RequestInit = {}) {
   const token = await getToken();
   const res = await fetch(`${SHIPROCKET_BASE_URL}${path}`, {
     ...options,
+    signal: AbortSignal.timeout(20000),
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
@@ -64,6 +65,7 @@ async function shiprocketRequest(path: string, options: RequestInit = {}) {
     );
   }
 
+  if (!data) throw new Error("Shiprocket returned an empty or invalid JSON response. Check the provider dashboard before retrying a booking.");
   return data;
 }
 
@@ -146,6 +148,7 @@ export async function createShiprocketOrder(params: CreateShiprocketOrderParams)
     }),
   });
 
+  if (!data?.order_id || !data?.shipment_id) throw new Error("Shiprocket did not confirm a shipment ID. Review the provider dashboard before retrying.");
   return {
     shiprocketOrderId: String(data.order_id),
     shipmentId: String(data.shipment_id),
@@ -156,10 +159,10 @@ export async function createShiprocketOrder(params: CreateShiprocketOrderParams)
  * Auto-assigns the best available courier to an already-created shipment
  * and returns the resulting tracking number (AWB code).
  */
-export async function assignAWB(shipmentId: string) {
+export async function assignAWB(shipmentId: string, courierId?: number) {
   const data = await shiprocketRequest("/courier/assign/awb", {
     method: "POST",
-    body: JSON.stringify({ shipment_id: shipmentId }),
+    body: JSON.stringify({ shipment_id: shipmentId, ...(courierId ? { courier_id: courierId } : {}) }),
   });
 
   const response = data?.response?.data;
@@ -187,3 +190,34 @@ export async function trackShipment(awbCode: string) {
   };
 }
 
+
+export async function inspectShiprocketDraft(order: import('../shared/schema').Order, parcel?: import('../shared/shipping').ShippingParcel) {
+  if (!order.shiprocketOrderId || !order.shiprocketShipmentId) throw new Error('Shiprocket draft reference is missing; reconcile it in Shiprocket.');
+  const data = (await shiprocketRequest(`/orders/show/${encodeURIComponent(order.shiprocketOrderId)}`))?.data;
+  const shipment = data?.shipments;
+  if (String(data?.id) !== order.shiprocketOrderId || String(shipment?.id) !== order.shiprocketShipmentId || String(data?.channel_order_id) !== order.id) throw new Error('Shiprocket order reference could not be verified.');
+  if (shipment.awb || data?.awb_data?.awb) throw new Error('A courier is already assigned in Shiprocket. Do not book another shipment.');
+  if (parcel && (Number(shipment.weight) !== parcel.weightKg || Number(shipment.length) !== parcel.lengthCm || Number(shipment.breadth) !== parcel.breadthCm || Number(shipment.height) !== parcel.heightCm)) throw new Error('Packed measurements differ from the Shiprocket draft. Update the draft or enter its exact measurements before comparing/assigning.');
+  return data;
+}
+
+export async function shiprocketRates(order: import('../shared/schema').Order, parcel: import('../shared/shipping').ShippingParcel): Promise<import('../shared/shipping').ShippingRate[]> {
+  if (order.shiprocketShipmentId) {
+    const draft = await inspectShiprocketDraft(order, parcel);
+    if (/cancel/i.test(draft.status)) throw new Error('Shiprocket draft is cancelled. Verify cancellation before creating another shipment.');
+  }
+  const locations = (await shiprocketRequest('/settings/company/pickup'))?.data?.shipping_address;
+  const pickup = Array.isArray(locations) ? locations.find((p: any) => p.pickup_location === process.env.SHIPROCKET_PICKUP_LOCATION) : undefined;
+  if (!pickup || !/^[1-9]\d{5}$/.test(String(pickup.pin_code))) throw new Error('Shiprocket pickup location/pincode could not be verified. Check SHIPROCKET_PICKUP_LOCATION.');
+  const params = new URLSearchParams({ pickup_postcode: String(pickup.pin_code), delivery_postcode: order.shippingPincode, cod: '0', weight: String(parcel.weightKg), length: String(parcel.lengthCm), breadth: String(parcel.breadthCm), height: String(parcel.heightCm), declared_value: order.total });
+  if (order.shiprocketOrderId) params.set('order_id', order.shiprocketOrderId);
+  const data = await shiprocketRequest(`/courier/serviceability/?${params}`);
+  const companies = data?.data?.available_courier_companies;
+  if (!Array.isArray(companies)) throw new Error('Shiprocket returned no courier rates. Check serviceability and account access.');
+  const rates = companies.filter((c: any) => !Number(c.blocked) && !c.odablock && Number.isFinite(Number(c.rate)) && Number(c.rate) > 0 && Number.isInteger(Number(c.courier_company_id)) && Number(c.courier_company_id) > 0 && Number(c.charge_weight) > 0).map((c: any) => ({
+    id: `shiprocket:${c.courier_company_id}`, provider: 'shiprocket' as const, service: String(c.courier_name), amount: Number(c.rate), currency: 'INR' as const, courierId: Number(c.courier_company_id), chargeableWeightKg: Number(c.charge_weight), estimatedDays: c.estimated_delivery_days ? String(c.estimated_delivery_days) : undefined,
+    taxNote: 'Rate reported by Shiprocket. Tax, surcharges and final assessed weight may affect the wallet debit; verify in Shiprocket.',
+  }));
+  if (!rates.length) throw new Error('No usable Shiprocket courier rates are available for this parcel.');
+  return rates;
+}
