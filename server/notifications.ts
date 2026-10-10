@@ -1,5 +1,15 @@
 import type { Order, OrderItem } from "@shared/schema";
 
+// Notification recipients only; never used for admin-panel authorization.
+export function adminNotificationRecipients(): string[] {
+  const additional = process.env.ADMIN_NOTIFICATION_EMAILS ?? "khandelwalshubham5775@gmail.com";
+  return Array.from(new Set([process.env.ADMIN_EMAIL || "", additional]
+    .flatMap(value => value.split(","))
+    .map(value => value.trim().toLowerCase())
+    .filter(Boolean)));
+}
+
+
 /**
  * Fires the admin, customer and Telegram notification channels for a newly-paid order. Each channel
  * fails independently and silently (logged, not thrown) — a broken email
@@ -45,11 +55,11 @@ function formatOrderSummary(order: Order, items: OrderItem[]): string {
 
 async function sendOrderEmail(order: Order, items: OrderItem[]) {
   const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmails = adminNotificationRecipients();
 
-  if (!apiKey || !adminEmail) {
+  if (!apiKey || !adminEmails.length) {
     console.warn(
-      "[notifications] RESEND_API_KEY or ADMIN_EMAIL not set — skipping order email.",
+      "[notifications] RESEND_API_KEY or admin notification recipients not set — skipping order email.",
     );
     return;
   }
@@ -70,7 +80,7 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
     const { error } = await resend.emails.send({
       // This sender domain must be verified in Resend.
       from: "The Crunch Era <orders@thecrunchera.com>",
-      to: adminEmail,
+      to: adminEmails,
       subject: `New order — ₹${order.total} (#${order.id.slice(0, 8)})`,
       html: `
         <h2>New paid order</h2>
@@ -126,6 +136,13 @@ async function sendTelegramMessage(order: Order, items: OrderItem[]) {
 
 /** Email failure must not undo a successfully purchased courier assignment. */
 export async function notifyCourierAssigned(order: Order) {
+  await Promise.allSettled([
+    notifyCustomerCourierAssigned(order),
+    notifyAdminCourierAssigned(order),
+  ]);
+}
+
+async function notifyCustomerCourierAssigned(order: Order) {
   try {
     const { storage } = await import("./storage");
     const customer = await storage.getUserById(order.userId);
@@ -134,5 +151,43 @@ export async function notifyCourierAssigned(order: Order) {
     await sendCustomerShipmentEmail(order, customer.email);
   } catch (error) {
     console.error(`[notifications] Shipping email failed for order ${order.id}:`, error);
+  }
+}
+
+async function notifyAdminCourierAssigned(order: Order) {
+  try {
+    if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is missing");
+    const recipients = adminNotificationRecipients();
+    if (!recipients.length) throw new Error("No admin notification recipients configured");
+    const { customerShipmentEmail } = await import("./customerShipmentEmail");
+    // Use the same required-data validation as the customer message.
+    customerShipmentEmail(order);
+    const trackingUrl = `https://shiprocket.co/tracking/${encodeURIComponent(order.awbCode!)}`;
+    const text = [
+      "Courier assigned — The Crunch Era",
+      `Order: ${order.id}`,
+      `Customer: ${order.shippingName}`,
+      `Phone: ${order.shippingPhone}`,
+      `Courier: ${order.courierName}`,
+      `Tracking number (AWB): ${order.awbCode}`,
+      `Track parcel: ${trackingUrl}`,
+      "Status: Courier assigned. Pickup is not yet confirmed.",
+      "Delivery address:",
+      order.shippingAddressLine1,
+      order.shippingAddressLine2,
+      `${order.shippingCity}, ${order.shippingState} – ${order.shippingPincode}`,
+    ].filter(Boolean).join("\n\n");
+    const escaped = text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    const { Resend } = await import("resend");
+    const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+      from: process.env.ORDER_EMAIL_FROM || "The Crunch Era <orders@thecrunchera.com>",
+      to: recipients,
+      subject: "Courier assigned — The Crunch Era",
+      text,
+      html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
+    }, { idempotencyKey: `admin-courier-assigned/${order.id}/${order.shiprocketShipmentId}` });
+    if (error) throw new Error(`${error.name}: ${error.message}`);
+  } catch (error) {
+    console.error(`[notifications] Admin shipping email failed for order ${order.id}:`, error);
   }
 }

@@ -2,7 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { customerOrderEmail, sendCustomerOrderEmail, CUSTOMER_ORDER_SUBJECT } from "./customerOrderEmail";
 import { storage } from "./storage";
-import { notifyNewOrder } from "./notifications";
+import { notifyNewOrder, adminNotificationRecipients } from "./notifications";
 import type { Order, OrderItem } from "../shared/schema";
 
 const order = {
@@ -71,6 +71,10 @@ test("atomic paid transition has one winner; customer and admin delivery are ind
   try {
     await notifyNewOrder(paid, items);
     assert.equal(sent.length, 2);
+    const adminMail = sent.find(p => Array.isArray(p.to));
+    assert.ok(adminMail.to.includes("owner@example.test"));
+    assert.ok(adminMail.to.includes("khandelwalshubham5775@gmail.com"));
+    assert.ok(!JSON.stringify(sent.find(p => p.to === customer.email)).includes("khandelwalshubham5775@gmail.com"));
     assert.equal(sent.filter(p => p.to.includes(customer.email)).length, 1);
     assert.equal(sent.find(p => p.to.includes(customer.email)).subject, CUSTOMER_ORDER_SUBJECT);
     await storage.updateOrderStatus(pending.id, "shipped");
@@ -79,6 +83,22 @@ test("atomic paid transition has one winner; customer and admin delivery are ind
   } finally {
     globalThis.fetch = oldFetch;
     for (const key of ["RESEND_API_KEY", "ADMIN_EMAIL", "TELEGRAM_BOT_TOKEN"]) {
+      if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
+    }
+  }
+});
+
+test("admin email list preserves existing recipients and deduplicates, without using authorization settings", () => {
+  const saved = { ...process.env };
+  try {
+    process.env.ADMIN_EMAIL = "Owner@example.test, owner@example.test";
+    delete process.env.ADMIN_NOTIFICATION_EMAILS;
+    process.env.ADMIN_EMAILS = "access-only@example.test";
+    assert.deepEqual(adminNotificationRecipients(), ["owner@example.test", "khandelwalshubham5775@gmail.com"]);
+    process.env.ADMIN_NOTIFICATION_EMAILS = " owner@example.test, extra@example.test ";
+    assert.deepEqual(adminNotificationRecipients(), ["owner@example.test", "extra@example.test"]);
+  } finally {
+    for (const key of ["ADMIN_EMAIL", "ADMIN_NOTIFICATION_EMAILS", "ADMIN_EMAILS"]) {
       if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
     }
   }

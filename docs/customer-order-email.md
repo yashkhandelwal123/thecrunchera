@@ -33,3 +33,11 @@ The website admin's Assign Courier action sends a separate customer email after 
 The same Resend sender/support settings apply. A shipment-specific idempotency key protects repeated provider requests within Resend's retention period. Failures are logged without undoing the courier assignment; delivery is best-effort, as with order confirmation. Assignments made directly in the Shiprocket dashboard are not observed by this route; those would require a separate webhook integration.
 
 Regression test: `node --import tsx --test server/customerShipmentEmail.test.ts server/customerOrderEmail.test.ts`. All provider calls in these tests are mocked: no live shipment, wallet debit or email is created.
+
+## Additional admin notifications
+
+New-order alerts and courier-assigned alerts go to the existing `ADMIN_EMAIL` recipient(s), plus `khandelwalshubham5775@gmail.com` by default. Customer emails are separate and never contain the admin recipient list. Comma-separated addresses are trimmed and deduplicated.
+
+Optional `ADMIN_NOTIFICATION_EMAILS` overrides the additional notification recipients (set it to an empty string to disable additional recipients). It is separate from `ADMIN_EMAILS`, which controls admin-panel access and is unchanged. No new environment setting is required to include the requested address with the default configuration.
+
+Courier-assigned admin emails contain the order reference, customer name/phone, courier, AWB, tracking URL and delivery address. Customer and admin shipment emails use separate idempotency keys and independent error handling. As before, these are best-effort sends triggered by the website's Assign Courier action, not direct Shiprocket-dashboard changes. No historical notifications are sent automatically.

@@ -24,7 +24,7 @@ test("tracking template requires assignment, safely displays carrier and AWB, an
 
 test("courier route sends to buyer only after successful assignment; repeat and failed assignments send nothing; mail failure preserves shipment", async () => {
   const saved = { ...process.env };
-  Object.assign(process.env, { RESEND_API_KEY: "re_mock", ADMIN_EMAILS: "qa-admin@example.test", SHIPROCKET_EMAIL: "qa@example.test", SHIPROCKET_PASSWORD: "mock-only" });
+  Object.assign(process.env, { RESEND_API_KEY: "re_mock", ADMIN_EMAILS: "qa-admin@example.test", SHIPROCKET_EMAIL: "qa@example.test", SHIPROCKET_PASSWORD: "mock-only", ADMIN_EMAIL: "qa-admin@example.test", ADMIN_NOTIFICATION_EMAILS: "khandelwalshubham5775@gmail.com" });
   const admin = await storage.createUser({ googleId: "qa-shipping-admin", email: "qa-admin@example.test", name: "QA admin" });
   const buyer = await storage.createUser({ googleId: "qa-shipping-buyer", email: "qa-buyer@example.test", name: "QA buyer" });
   const app = express(); app.use(express.json());
@@ -57,11 +57,18 @@ test("courier route sends to buyer only after successful assignment; repeat and 
     const order = await create(true);
     const response = await assign(order.id);
     assert.equal(response.status, 200); assert.equal((await response.json()).status, "shipped");
-    assert.equal(sent.length, 1); assert.equal(sent[0].payload.to, buyer.email);
-    assert.ok(sent[0].payload.text.includes("Test Courier")); assert.ok(sent[0].key.includes(order.id));
-    assert.equal((await assign(order.id)).status, 400); assert.equal(sent.length, 1);
+    assert.equal(sent.length, 2);
+    const customerMail = sent.find(mail => mail.payload.to === buyer.email);
+    const adminMail = sent.find(mail => Array.isArray(mail.payload.to));
+    assert.ok(customerMail.payload.text.includes("Test Courier")); assert.ok(customerMail.key.includes(order.id));
+    assert.deepEqual(adminMail.payload.to, ["qa-admin@example.test", "khandelwalshubham5775@gmail.com"]);
+    assert.ok(adminMail.payload.text.includes("QA123"));
+    assert.ok(adminMail.payload.text.includes("Test address"));
+    assert.notEqual(adminMail.key, customerMail.key);
+    assert.ok(!JSON.stringify(customerMail.payload).includes("khandelwalshubham5775@gmail.com"));
+    assert.equal((await assign(order.id)).status, 400); assert.equal(sent.length, 2);
     courierFails = true;
-    assert.equal((await assign((await create(true)).id)).status, 500); assert.equal(sent.length, 1);
+    assert.equal((await assign((await create(true)).id)).status, 500); assert.equal(sent.length, 2);
     courierFails = false; mailFails = true;
     const emailFailure = await create(true);
     assert.equal((await assign(emailFailure.id)).status, 200);
@@ -69,7 +76,7 @@ test("courier route sends to buyer only after successful assignment; repeat and 
   } finally {
     globalThis.fetch = oldFetch;
     await new Promise<void>(resolve => server.close(() => resolve()));
-    for (const key of ["RESEND_API_KEY", "ADMIN_EMAILS", "SHIPROCKET_EMAIL", "SHIPROCKET_PASSWORD"]) {
+    for (const key of ["RESEND_API_KEY", "ADMIN_EMAILS", "SHIPROCKET_EMAIL", "SHIPROCKET_PASSWORD", "ADMIN_EMAIL", "ADMIN_NOTIFICATION_EMAILS"]) {
       if (saved[key] === undefined) delete process.env[key]; else process.env[key] = saved[key];
     }
   }
