@@ -1,7 +1,7 @@
 import type { Order, OrderItem } from "@shared/schema";
 
 /**
- * Fires both notification channels for a newly-paid order. Each channel
+ * Fires the admin, customer and Telegram notification channels for a newly-paid order. Each channel
  * fails independently and silently (logged, not thrown) — a broken email
  * or Telegram setup should never break the actual checkout flow for the
  * customer. Call this AFTER the order is already marked paid in the DB.
@@ -9,8 +9,21 @@ import type { Order, OrderItem } from "@shared/schema";
 export async function notifyNewOrder(order: Order, items: OrderItem[]) {
   await Promise.allSettled([
     sendOrderEmail(order, items),
+    notifyCustomer(order, items),
     sendTelegramMessage(order, items),
   ]);
+}
+
+async function notifyCustomer(order: Order, items: OrderItem[]) {
+  try {
+    const { storage } = await import("./storage");
+    const customer = await storage.getUserById(order.userId);
+    if (!customer?.email) throw new Error("Order customer has no email address");
+    const { sendCustomerOrderEmail } = await import("./customerOrderEmail");
+    await sendCustomerOrderEmail(order, items, customer.email);
+  } catch (error) {
+    console.error(`[notifications] Customer confirmation failed for order ${order.id}:`, error);
+  }
 }
 
 function formatOrderSummary(order: Order, items: OrderItem[]): string {
@@ -54,9 +67,8 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
       )
       .join("");
 
-    await resend.emails.send({
-      // Resend's shared test domain — works immediately with no DNS setup.
-      // Swap to a verified domain address once you set one up in Resend.
+    const { error } = await resend.emails.send({
+      // This sender domain must be verified in Resend.
       from: "The Crunch Era <orders@thecrunchera.com>",
       to: adminEmail,
       subject: `New order — ₹${order.total} (#${order.id.slice(0, 8)})`,
@@ -74,7 +86,8 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
           ${order.shippingCity}, ${order.shippingState} - ${order.shippingPincode}
         </p>
       `,
-    });
+    }, { idempotencyKey: `admin-order-paid/${order.id}` });
+    if (error) throw new Error(`${error.name}: ${error.message}`);
   } catch (error) {
     console.error("[notifications] Failed to send order email:", error);
   }

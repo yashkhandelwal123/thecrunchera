@@ -19,7 +19,7 @@ import {
   orderItems,
 } from "@shared/schema";
 import { randomUUID } from "crypto";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 export interface IStorage {
   // Products
@@ -294,7 +294,7 @@ export class MemStorage implements IStorage {
 
   async markOrderPaid(id: string, razorpayPaymentId: string): Promise<Order | undefined> {
     const order = this.orders.get(id);
-    if (!order) return undefined;
+    if (!order || order.status !== "pending") return undefined;
     const updated = { ...order, status: "paid", razorpayPaymentId };
     this.orders.set(id, updated);
     return updated;
@@ -553,7 +553,7 @@ export class DbStorage implements IStorage {
     const [order] = await db
       .update(orders)
       .set({ status: "paid", razorpayPaymentId })
-      .where(eq(orders.id, id))
+      .where(and(eq(orders.id, id), eq(orders.status, "pending")))
       .returning();
     return order;
   }

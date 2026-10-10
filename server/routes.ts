@@ -345,10 +345,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Payment verification failed" });
       }
 
-      const wasAlreadyPaid = order.status === "paid";
       const updated = await storage.markOrderPaid(order.id, razorpay_payment_id);
 
-      if (!wasAlreadyPaid && updated) {
+      // Only the request that atomically changes pending -> paid sends notifications.
+      if (updated) {
         const items = await storage.getOrderItems(order.id);
         const { notifyNewOrder } = await import("./notifications");
         notifyNewOrder(updated, items).catch((err) =>
@@ -356,7 +356,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         );
       }
 
-      res.json(updated);
+      res.json(updated ?? await storage.getOrderById(order.id));
     } catch (error) {
       console.error("Verify payment error:", error);
       res.status(500).json({ error: "Failed to verify payment" });
