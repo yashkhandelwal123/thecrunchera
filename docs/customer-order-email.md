@@ -41,3 +41,9 @@ New-order alerts and courier-assigned alerts go to the existing `ADMIN_EMAIL` re
 Optional `ADMIN_NOTIFICATION_EMAILS` overrides the additional notification recipients (set it to an empty string to disable additional recipients). It is separate from `ADMIN_EMAILS`, which controls admin-panel access and is unchanged. No new environment setting is required to include the requested address with the default configuration.
 
 Courier-assigned admin emails contain the order reference, customer name/phone, courier, AWB, tracking URL and delivery address. Customer and admin shipment emails use separate idempotency keys and independent error handling. As before, these are best-effort sends triggered by the website's Assign Courier action, not direct Shiprocket-dashboard changes. No historical notifications are sent automatically.
+
+## Customer tracking email PDF for admins
+
+Courier-assignment notifications now build one customer email snapshot for both the customer send and an admin PDF attachment (`customer-tracking-email.pdf`). The PDF includes the same subject and plain-text content, including support contact, current status, tracking URL and delivery address. It is a readable content copy, not a screenshot of a particular inbox and not confirmation of delivery. It is generated in memory and is never stored in a public directory or attached to the customer's email.
+
+Existing admin recipients (including the additional configured notification recipient) receive this attachment on future tracking notifications. Existing idempotency keys remain unchanged, so deploying this feature does not resend previous emails. PDF rendering failures fall back to the customer subject/body in the admin message; they do not suppress the customer email or undo a booking. Font and PDF packages install through npm; no new environment variable or database migration is needed for this attachment feature.

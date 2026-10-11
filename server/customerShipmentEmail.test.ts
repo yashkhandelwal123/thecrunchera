@@ -66,6 +66,11 @@ test("courier route sends to buyer only after successful assignment; repeat and 
     const adminMail = sent.find(mail => Array.isArray(mail.payload.to));
     assert.ok(customerMail.payload.text.includes("Test Courier")); assert.ok(customerMail.key.includes(order.id));
     assert.deepEqual(adminMail.payload.to, ["qa-admin@example.test", "khandelwalshubham5775@gmail.com"]);
+    assert.equal(adminMail.payload.attachments.length, 1);
+    assert.equal(adminMail.payload.attachments[0].filename, 'customer-tracking-email.pdf');
+    assert.equal(Buffer.from(adminMail.payload.attachments[0].content, 'base64').subarray(0, 5).toString(), '%PDF-');
+    assert.equal(customerMail.payload.attachments, undefined);
+    assert.ok(adminMail.payload.text.includes("not proof of inbox delivery"));
     assert.ok(adminMail.payload.text.includes("QA123"));
     assert.ok(adminMail.payload.text.includes("Test address"));
     assert.notEqual(adminMail.key, customerMail.key);

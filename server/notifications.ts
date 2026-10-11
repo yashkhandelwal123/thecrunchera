@@ -1,3 +1,4 @@
+import type { CustomerEmailCopy } from "./customerEmailPdf";
 import type { Order, OrderItem } from "@shared/schema";
 import { shipmentTrackingUrl, shipmentNotificationKey } from "../shared/shipping";
 
@@ -137,35 +138,45 @@ async function sendTelegramMessage(order: Order, items: OrderItem[]) {
 
 /** Email failure must not undo a successfully purchased courier assignment. */
 export async function notifyCourierAssigned(order: Order) {
+  const { customerShipmentEmail } = await import("./customerShipmentEmail");
+  const email = customerShipmentEmail(order, process.env.SUPPORT_EMAIL?.trim());
   await Promise.allSettled([
-    notifyCustomerCourierAssigned(order),
-    notifyAdminCourierAssigned(order),
+    notifyCustomerCourierAssigned(order, email),
+    notifyAdminCourierAssigned(order, email),
   ]);
 }
 
-async function notifyCustomerCourierAssigned(order: Order) {
+async function notifyCustomerCourierAssigned(order: Order, email: CustomerEmailCopy) {
   try {
     const { storage } = await import("./storage");
     const customer = await storage.getUserById(order.userId);
     if (!customer?.email) throw new Error("Order customer has no email address");
     const { sendCustomerShipmentEmail } = await import("./customerShipmentEmail");
-    await sendCustomerShipmentEmail(order, customer.email);
+    await sendCustomerShipmentEmail(order, customer.email, email);
   } catch (error) {
     console.error(`[notifications] Shipping email failed for order ${order.id}:`, error);
   }
 }
 
-async function notifyAdminCourierAssigned(order: Order) {
+async function notifyAdminCourierAssigned(order: Order, email: CustomerEmailCopy) {
   try {
     if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is missing");
     const recipients = adminNotificationRecipients();
     if (!recipients.length) throw new Error("No admin notification recipients configured");
-    const { customerShipmentEmail } = await import("./customerShipmentEmail");
-    // Use the same required-data validation as the customer message.
-    customerShipmentEmail(order);
+    let attachments: { filename: string; content: Buffer }[] = [];
+    let copyNote = "Attached: PDF copy of the customer tracking email. This copy is not proof of inbox delivery.";
+    try {
+      const { customerEmailPdf } = await import("./customerEmailPdf");
+      attachments = [{ filename: "customer-tracking-email.pdf", content: await customerEmailPdf(email) }];
+    } catch (error) {
+      // PDF problems must not suppress the admin alert or affect the customer send.
+      console.error("[notifications] Customer email PDF could not be generated:", error);
+      copyNote = "PDF generation failed. Customer email content is included below instead. This is not proof of inbox delivery.\n\n" + email.subject + "\n\n" + email.text;
+    }
     const trackingUrl = shipmentTrackingUrl(order);
     const text = [
       "Courier assigned — The Crunch Era",
+      copyNote,
       `Order: ${order.id}`,
       `Customer: ${order.shippingName}`,
       `Phone: ${order.shippingPhone}`,
@@ -184,6 +195,7 @@ async function notifyAdminCourierAssigned(order: Order) {
       from: process.env.ORDER_EMAIL_FROM || "The Crunch Era <orders@thecrunchera.com>",
       to: recipients,
       subject: "Courier assigned — The Crunch Era",
+      attachments,
       text,
       html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
     }, { idempotencyKey: `admin-courier-assigned/${order.id}/${shipmentNotificationKey(order)}` });

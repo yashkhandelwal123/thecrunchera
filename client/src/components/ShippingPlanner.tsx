@@ -56,13 +56,19 @@ export default function ShippingPlanner({ order, onChanged }: { order: { id: str
         <p className="text-2xl font-bold tabular-nums">{new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(rate.amount)}</p>
         <p>{rate.chargeableWeightKg} kg billable estimate{rate.estimatedDays ? ` · ${rate.estimatedDays} days estimated` : ''}</p>
         <p className="text-sm text-muted-foreground">{rate.taxNote}</p>
-        <Button variant="outline" disabled={busy || expired || dirty || (rate.provider === 'delhivery' && !!order.shiprocketShipmentId)} onClick={() => setSelected(rate)}>{rate.provider === 'shiprocket' && !order.shiprocketShipmentId ? 'Choose & create Shiprocket draft' : 'Choose courier'}</Button>
-      </div>)}</div>
-      {selected && <div className="rounded-lg border-2 border-primary p-4 space-y-3" role="status">
+        {rate.provider === 'delhivery' && order.shiprocketShipmentId && <div className="rounded-md bg-amber-50 text-amber-900 p-3 space-y-2">
+          <p>A Shiprocket draft already exists for this order. To use Delhivery, cancel the unassigned draft in Shiprocket first, then verify its cancellation here.</p>
+          <a className="underline block" href="https://app.shiprocket.in/" target="_blank" rel="noreferrer">Open Shiprocket</a>
+          <Button type="button" variant="outline" disabled={busy} onClick={() => mutate('verify-shiprocket-cancellation', {})}>Verify Shiprocket cancellation</Button>
+        </div>}
+        {(expired || dirty) && <p className="text-sm text-amber-900">{dirty ? 'Measurements changed. Save preparation & compare rates again before choosing.' : 'This estimate expired. Compare rates again before choosing.'}</p>}
+        <Button type="button" variant="outline" aria-pressed={selected?.id === rate.id} disabled={busy || expired || dirty || (rate.provider === 'delhivery' && !!order.shiprocketShipmentId)} onClick={() => setSelected(rate)}>{rate.provider === 'delhivery' && order.shiprocketShipmentId ? 'Blocked by existing Shiprocket draft' : selected?.id === rate.id ? 'Selected — confirm below' : rate.provider === 'shiprocket' && !order.shiprocketShipmentId ? 'Choose & create Shiprocket draft' : 'Choose courier'}</Button>
+      {selected?.id === rate.id && <div className="rounded-lg border-2 border-primary p-4 space-y-3" role="status">
         <p className="font-semibold">Confirm {selected.service}</p>
         <p>{selected.provider === 'shiprocket' && !order.shiprocketShipmentId ? 'This creates a Shiprocket draft only. Reopen preparation and compare rates to assign the courier afterward, or assign it in Shiprocket.' : 'This books/assigns the courier and generates an AWB. Carrier account charges may apply. Tracking emails will be sent; pickup is arranged separately.'}</p>
         <div className="flex flex-wrap gap-3"><Button disabled={busy || dirty || expired} onClick={() => mutate(selected.provider === 'delhivery' ? 'create-delhivery-shipment' : order.shiprocketShipmentId ? 'assign-courier' : 'create-shipment', { ...plan.parcel, planId: plan.id, rateId: selected.id })}>{selected.provider === 'shiprocket' && !order.shiprocketShipmentId ? 'Create draft only' : 'Confirm booking (billable)'}</Button><Button variant="ghost" disabled={busy} onClick={() => setSelected(null)}>Cancel</Button></div>
       </div>}
+      </div>)}</div>
       <div className="rounded-lg bg-muted p-4 space-y-3">
         <h4 className="font-semibold">Prefer booking on the provider's platform?</h4>
         <p><a className="underline" href="https://app.shiprocket.in/" target="_blank" rel="noreferrer">Open Shiprocket</a> · <a className="underline" href="https://one.delhivery.com/" target="_blank" rel="noreferrer">Open Delhivery One</a></p>

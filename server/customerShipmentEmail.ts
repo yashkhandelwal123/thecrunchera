@@ -19,11 +19,11 @@ export function customerShipmentEmail(order: Order, supportEmail?: string) {
   return { subject, html, text };
 }
 
-export async function sendCustomerShipmentEmail(order: Order, customerEmail: string) {
+export async function sendCustomerShipmentEmail(order: Order, customerEmail: string, preparedEmail?: ReturnType<typeof customerShipmentEmail>) {
   if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is missing; shipping email could not be sent");
   const { Resend } = await import("resend");
   const supportEmail = process.env.SUPPORT_EMAIL?.trim();
-  const email = customerShipmentEmail(order, supportEmail);
+  const email = preparedEmail ?? customerShipmentEmail(order, supportEmail);
   const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
     from: process.env.ORDER_EMAIL_FROM || "The Crunch Era <orders@thecrunchera.com>",
     to: customerEmail,
