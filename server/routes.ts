@@ -1,4 +1,6 @@
 import type { Express } from "express";
+import { notifyContactQuery } from "./contactNotification";
+import { z } from "zod";
 import { createServer, type Server } from "http";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
@@ -69,8 +71,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contact form submission
   app.post("/api/contact", async (req, res) => {
     try {
-      const validatedData = insertContactSchema.parse(req.body);
+      const validatedData = insertContactSchema.extend({
+        name: z.string().trim().min(2).max(120),
+        email: z.string().trim().email().max(254),
+        subject: z.string().trim().min(1).max(200),
+        message: z.string().trim().min(1).max(5000),
+      }).parse(req.body);
       const contact = await storage.createContact(validatedData);
+      await notifyContactQuery(contact);
       res.status(201).json(contact);
     } catch (error) {
       res.status(400).json({ error: "Invalid request data" });
