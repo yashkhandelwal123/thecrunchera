@@ -1,3 +1,4 @@
+import { edamame } from "./edamame";
 import type { Product } from "./schema";
 
 // Ingredients and product facts supplied by the owner from their Amazon listings.
@@ -26,6 +27,7 @@ const nutritionPer100g = [
 ];
 const allergenAdvice = "This product is packaged in a facility that handles soybeans, mustard, sesame, peanuts, and tree nuts.";
 export function productDetails(product: Pick<Product, "name" | "description">) {
+  if (/edamame/i.test(product.name)) return { ...edamame, tone: "mint", packSize: product.name.match(/(150\s*g|400\s*g|800\s*g|1\s*kg)/i)?.[1] || edamame.packSize, shelfLife: undefined, metaDescription: "Discover Classic Salt roasted edamame beans from The Crunch Era. Ingredients, soy allergen advice and protein and fibre information per 100 g." };
   const known = details[product.name.toLowerCase().trim()];
   return { ...known, description: known?.description || product.description, flavour: known?.flavour || "Chips", tone: known?.tone || "lilac", packSize: known ? "60 g" : null, nutrition: known ? nutritionPer100g : undefined, allergenAdvice: known ? allergenAdvice : undefined };
 }

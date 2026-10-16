@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { installEdamameCatalog } from "./edamameSeeds";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
 import { apiErrorHandler, apiNotFound } from "./apiErrors";
@@ -94,6 +95,7 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await installEdamameCatalog();
   const server = await registerRoutes(app);
 
   app.use("/api", apiNotFound);

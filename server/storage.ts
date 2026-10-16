@@ -1,3 +1,4 @@
+import { edamameProducts } from "./edamameSeeds";
 import {
   type Product,
   type InsertProduct,
@@ -136,6 +137,7 @@ export class MemStorage implements IStorage {
         featured: product.featured ?? 0,
       });
     });
+    edamameProducts.forEach(product => this.products.set(product.id, product));
   }
 
   async getAllProducts(): Promise<Product[]> {
@@ -401,7 +403,7 @@ export class DbStorage implements IStorage {
       },
     ];
 
-    await db.insert(products).values(seedData);
+    await db.insert(products).values([...seedData, ...edamameProducts]);
   }
 
   async getAllProducts(): Promise<Product[]> {

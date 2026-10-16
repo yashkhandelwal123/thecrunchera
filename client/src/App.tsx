@@ -8,6 +8,7 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import EdamamePage from "@/pages/EdamamePage";
 import HomePage from "@/pages/HomePage";
 import ProductsPage from "@/pages/ProductsPage";
 import ShippingPage from "@/pages/ShippingPage";
@@ -47,6 +48,7 @@ function Router() {
       <Switch>
         <Route path="/" component={HomePage} />
         <Route path="/products" component={ProductsPage} />
+        <Route path="/edamame-beans" component={EdamamePage} />
         <Route path="/products/:slug/:id" component={ProductDetailPage} />
         <Route path="/shipping" component={ShippingPage} />
         <Route path="/about" component={AboutPage} />
