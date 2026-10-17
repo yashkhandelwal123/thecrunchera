@@ -21,6 +21,9 @@ interface OrderDetail {
   id: string;
   status: string;
   subtotal: string;
+  discountAmount: string;
+  shippingCharge: string;
+  promoCode: string | null;
   total: string;
   shippingName: string;
   shippingPhone: string;
@@ -201,6 +204,12 @@ export default function OrderDetailPage() {
               </div>
             </div>
           ))}
+          <div className="order-breakdown">
+            <div><span>Product subtotal</span><span>₹{order.subtotal}</span></div>
+            <div><span>Shipping</span><span>₹{Number(order.shippingCharge || 0).toFixed(2)}</span></div>
+            <div><span>Discount {order.promoCode && `(${order.promoCode})`}</span><span>−₹{Number(order.discountAmount || 0).toFixed(2)}</span></div>
+            <div><span>Additional taxes / fees</span><span>₹0.00</span></div>
+          </div>
           <div className="border-t pt-3 flex justify-between font-bold text-lg">
             <span>Total</span>
             <span className="text-primary">₹{order.total}</span>
@@ -262,3 +271,4 @@ export default function OrderDetailPage() {
     </div>
   );
 }
+

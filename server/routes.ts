@@ -1,132 +1,31 @@
 import type { Express } from "express";
+import { notifyContactQuery } from "./contactNotification";
+import { z } from "zod";
 import { createServer, type Server } from "http";
 import { OAuth2Client } from "google-auth-library";
 import crypto from "crypto";
+import { registerShippingPlannerRoutes } from "./shippingPlannerRoutes";
+import { selectedShippingRate } from "./shippingQuotes";
 import { storage } from "./storage";
-import { insertNewsletterSchema, insertContactSchema, checkoutSchema } from "@shared/schema";
+import { quoteCart, PricingError } from "./pricing";
+import { shipmentTrackingUrl } from "../shared/shipping";
+import { delhiveryConfig, parcelSchema, checkDelhiveryServiceability, createDelhiveryShipment, trackDelhiveryShipment } from "./delhivery";
+import { publicProduct } from "../shared/catalog";
+import { registerSeoRoutes } from "./seo";
+import { insertNewsletterSchema, insertContactSchema, checkoutSchema, quoteSchema } from "@shared/schema";
 
 const googleClient = process.env.GOOGLE_CLIENT_ID
   ? new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
   : null;
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Dynamic XML sitemap for search engines
-  app.get("/sitemap.xml", async (_req, res) => {
-    try {
-      const products = await storage.getAllProducts();
-
-      // If you have a storage method for published blog posts,
-      // use it here. For now, this can be added once that method exists.
-      const blogs: any[] = [];
-
-      const baseUrl = "https://thecrunchera.com";
-      const today = new Date().toISOString().split("T")[0];
-
-      const escapeXml = (value: string) =>
-        value
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;")
-          .replace(/"/g, "&quot;")
-          .replace(/'/g, "&apos;");
-
-      const formatDate = (date: unknown) => {
-        if (!date) return today;
-
-        const parsed = new Date(date as string | number | Date);
-
-        if (Number.isNaN(parsed.getTime())) {
-          return today;
-        }
-
-        return parsed.toISOString().split("T")[0];
-      };
-
-      const productUrls = products
-        .map((product) => {
-          // Adjust this if your product object uses a different field.
-          const slug =
-            "slug" in product && product.slug
-              ? String(product.slug)
-              : String(product.id);
-
-          const updatedAt =
-            "updatedAt" in product
-              ? product.updatedAt
-              : "updated_at" in product
-                ? product.updated_at
-                : undefined;
-
-          return `
-      <url>
-        <loc>${baseUrl}/product/${escapeXml(slug)}</loc>
-        <lastmod>${formatDate(updatedAt)}</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.8</priority>
-      </url>`;
-            })
-            .join("");
-
-          const blogUrls = blogs
-            .map((blog) => `
-      <url>
-        <loc>${baseUrl}/blog/${escapeXml(String(blog.slug))}</loc>
-        <lastmod>${formatDate(blog.updated_at)}</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>0.7</priority>
-      </url>`)
-            .join("");
-
-          const sitemap = `<?xml version="1.0" encoding="UTF-8"?>
-    <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-
-      <!-- HOMEPAGE -->
-      <url>
-        <loc>${baseUrl}/</loc>
-        <lastmod>${today}</lastmod>
-        <changefreq>weekly</changefreq>
-        <priority>1.0</priority>
-      </url>
-
-      <!-- ABOUT PAGE -->
-      <url>
-        <loc>${baseUrl}/about</loc>
-        <lastmod>${today}</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.8</priority>
-      </url>
-
-      <!-- FAQ PAGE -->
-      <url>
-        <loc>${baseUrl}/faq</loc>
-        <lastmod>${today}</lastmod>
-        <changefreq>monthly</changefreq>
-        <priority>0.7</priority>
-      </url>
-
-      <!-- PRODUCTS -->
-      ${productUrls}
-
-      <!-- BLOG POSTS -->
-      ${blogUrls}
-
-    </urlset>`;
-
-      res
-        .status(200)
-        .type("application/xml")
-        .send(sitemap);
-    } catch (error) {
-      console.error("Sitemap error:", error);
-      res.status(500).type("text/plain").send("Error generating sitemap");
-    }
-  });
+  registerSeoRoutes(app);
 
   // Get all products
   app.get("/api/products", async (_req, res) => {
     try {
       const products = await storage.getAllProducts();
-      res.json(products);
+      res.json(products.map(publicProduct));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
@@ -139,7 +38,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!product) {
         return res.status(404).json({ error: "Product not found" });
       }
-      res.json(product);
+      res.json(publicProduct(product));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch product" });
     }
@@ -149,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/products/category/:category", async (req, res) => {
     try {
       const products = await storage.getProductsByCategory(req.params.category);
-      res.json(products);
+      res.json(products.map(publicProduct));
     } catch (error) {
       res.status(500).json({ error: "Failed to fetch products" });
     }
@@ -172,8 +71,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Contact form submission
   app.post("/api/contact", async (req, res) => {
     try {
-      const validatedData = insertContactSchema.parse(req.body);
+      const validatedData = insertContactSchema.extend({
+        name: z.string().trim().min(2).max(120),
+        email: z.string().trim().email().max(254),
+        subject: z.string().trim().min(1).max(200),
+        message: z.string().trim().min(1).max(5000),
+      }).parse(req.body);
       const contact = await storage.createContact(validatedData);
+      await notifyContactQuery(contact);
       res.status(201).json(contact);
     } catch (error) {
       res.status(400).json({ error: "Invalid request data" });
@@ -280,6 +185,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
+  // Public quote: all prices are read from storage, never from client totals.
+  app.post("/api/checkout/quote", async (req, res) => {
+    const parsed = quoteSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ error: "Please check the items and quantities in your cart." });
+    try {
+      const quote = await quoteCart(storage, parsed.data.items, parsed.data.promoCode);
+      res.set("Cache-Control", "no-store").json(quote);
+    } catch (error) {
+      if (!(error instanceof PricingError)) console.error("[checkout/quote] Catalog lookup failed", { name: error instanceof Error ? error.name : "UnknownError" });
+      res.status(error instanceof PricingError ? 400 : 503).json({ error: error instanceof PricingError ? error.message : "Prices could not be loaded. Please try again." });
+    }
+  });
+
   // Creates an order from the cart. The server re-looks-up each product's
   // real price rather than trusting whatever the client sends — this is
   // the authoritative source of truth for what gets charged.
@@ -291,47 +209,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       const checkout = parsed.data;
 
-      const lineItems: {
-        productId: string;
-        productName: string;
-        productImage: string;
-        unitPrice: string;
-        quantity: number;
-      }[] = [];
-
-      let subtotal = 0;
-
-      for (const item of checkout.items) {
-        const product = await storage.getProductById(item.productId);
-        if (!product) {
-          return res
-            .status(400)
-            .json({ error: `Product ${item.productId} not found` });
-        }
-        const unitPrice = parseFloat(product.price);
-        subtotal += unitPrice * item.quantity;
-
-        lineItems.push({
-          productId: product.id,
-          productName: product.name,
-          productImage: product.image,
-          unitPrice: product.price,
-          quantity: item.quantity,
-        });
+      const quote = await quoteCart(storage, checkout.items, checkout.promoCode);
+      if (quote.promoError) return res.status(400).json({ error: quote.promoError });
+      if (checkout.expectedTotalPaise !== quote.totalPaise) {
+        return res.status(409).json({ error: "Your cart price changed. Review the refreshed total before paying." });
       }
-
-      if (lineItems.length === 0) {
-        return res.status(400).json({ error: "Cart is empty" });
-      }
-
-      // Shipping is free for now (matches what the cart page already shows).
-      const total = subtotal;
 
       const order = await storage.createOrder(
         {
           userId: req.session.userId!,
-          subtotal: subtotal.toFixed(2),
-          total: total.toFixed(2),
+          subtotal: (quote.subtotalPaise / 100).toFixed(2),
+          shippingCharge: (quote.shippingPaise / 100).toFixed(2),
+          discountAmount: (quote.discountPaise / 100).toFixed(2),
+          promoCode: quote.promoCode,
+          total: (quote.totalPaise / 100).toFixed(2),
           shippingName: checkout.shippingName,
           shippingPhone: checkout.shippingPhone,
           shippingAddressLine1: checkout.shippingAddressLine1,
@@ -340,13 +231,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
           shippingState: checkout.shippingState,
           shippingPincode: checkout.shippingPincode,
         },
-        lineItems,
+        quote.lineItems,
       );
 
       res.status(201).json(order);
     } catch (error) {
       console.error("Create order error:", error);
-      res.status(500).json({ error: "Failed to create order" });
+      res.status(error instanceof PricingError ? 400 : 500).json({ error: error instanceof PricingError ? error.message : "Failed to create order. Please try again." });
     }
   });
 
@@ -466,18 +357,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Payment verification failed" });
       }
 
-      const wasAlreadyPaid = order.status === "paid";
       const updated = await storage.markOrderPaid(order.id, razorpay_payment_id);
 
-      if (!wasAlreadyPaid && updated) {
+      // Only the request that atomically changes pending -> paid sends notifications.
+      if (updated) {
         const items = await storage.getOrderItems(order.id);
         const { notifyNewOrder } = await import("./notifications");
-        notifyNewOSrder(updated, items).catch((err) =>
+        notifyNewOrder(updated, items).catch((err) =>
           console.error("Order notification failed:", err),
         );
       }
 
-      res.json(updated);
+      res.json(updated ?? await storage.getOrderById(order.id));
     } catch (error) {
       console.error("Verify payment error:", error);
       res.status(500).json({ error: "Failed to verify payment" });
@@ -602,6 +493,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  registerShippingPlannerRoutes(app, requireAdmin);
+
+  app.get("/api/admin/shipping/providers", requireAdmin, (_req, res) => {
+    try {
+      const config = delhiveryConfig();
+      res.json({ delhiveryAvailable: true, delhiveryEnvironment: config.environment });
+    } catch {
+      res.json({ delhiveryAvailable: false, delhiveryEnvironment: null });
+    }
+  });
+
+  app.post("/api/admin/orders/:id/create-delhivery-shipment", requireAdmin, async (req, res) => {
+    let claimed = false;
+    try {
+      const order = await storage.getOrderById(req.params.id);
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      if (order.status !== "paid") return res.status(400).json({ error: "Only paid orders can be booked" });
+      if (order.shiprocketShipmentId || order.awbCode || order.shipmentBookingState) return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider before booking again." });
+      if (Number(order.total) >= 50000) return res.status(400).json({ error: "This high-value shipment needs invoice/e-waybill review. Book it through Delhivery One." });
+      const selected = await selectedShippingRate(order, req.body, "delhivery");
+      const config = delhiveryConfig();
+      const items = await storage.getOrderItems(order.id);
+      if (!items.length) return res.status(400).json({ error: "Cannot ship an order without items" });
+      await checkDelhiveryServiceability(order.shippingPincode);
+      const booking = await storage.claimShipmentBooking(order.id, "delhivery", config.environment);
+      if (!booking) return res.status(409).json({ error: "Another booking has started. Refresh this order before proceeding." });
+      claimed = true;
+      const shipment = await createDelhiveryShipment(order, items, selected.parcel);
+      const updated = await storage.updateOrderShipping(order.id, {
+        ...shipment, shipmentBookingState: "created",
+        trackingUrl: shipmentTrackingUrl({ shippingProvider: "delhivery", awbCode: shipment.awbCode }),
+        shippingStatus: "Courier assigned — arrange pickup in Delhivery One",
+      });
+      if (!updated) throw new Error("Booking accepted but order could not be saved; reconcile in Delhivery One");
+      // Sandbox bookings must never send real dispatch emails.
+      if (config.environment === "production") {
+        const { notifyCourierAssigned } = await import("./notifications");
+        await notifyCourierAssigned(updated);
+      }
+      res.json(updated);
+    } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
+      res.status(claimed ? 502 : 400).json({ error: error instanceof Error ? error.message : "Delhivery shipment could not be created" });
+    }
+  });
+
   // Admin: create a Shiprocket shipment for a paid order and assign a
   // courier, in one action ("Ship Now"). Weight/dimensions are supplied by
   // the admin per-order since actual packed weight varies by order size.
@@ -612,9 +549,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // this step is kept separate and free to let you inspect/verify before
   // committing to that cost.
   app.post("/api/admin/orders/:id/create-shipment", requireAdmin, async (req, res) => {
+    let claimed = false;
     try {
-      const { weightKg, lengthCm, breadthCm, heightCm } = req.body;
-      if (!weightKg || !lengthCm || !breadthCm || !heightCm) {
+      let { weightKg, lengthCm, breadthCm, heightCm } = req.body;
+      if (!parcelSchema.safeParse({ weightKg, lengthCm, breadthCm, heightCm }).success) {
         return res.status(400).json({
           error: "weightKg, lengthCm, breadthCm, and heightCm are all required",
         });
@@ -629,20 +567,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
           error: `Can only ship paid orders (this order is ${order.status})`,
         });
       }
-      if (order.shiprocketShipmentId) {
-        return res.status(400).json({ error: "A shipment already exists for this order" });
+      if (order.shiprocketShipmentId || order.awbCode || order.shipmentBookingState) {
+        return res.status(409).json({ error: "A shipment exists or a booking needs review. Check the existing provider first." });
       }
 
+      if (req.body.planId) {
+        const selected = await selectedShippingRate(order, req.body, "shiprocket");
+        ({ weightKg, lengthCm, breadthCm, heightCm } = selected.parcel);
+      }
       const [items, customer] = await Promise.all([
         storage.getOrderItems(order.id),
         storage.getUserById(order.userId),
       ]);
 
+      if (!items.length) return res.status(400).json({ error: "Cannot ship an order without items" });
       const { createShiprocketOrder } = await import("./shiprocket");
 
+      if (!process.env.SHIPROCKET_EMAIL || !process.env.SHIPROCKET_PASSWORD || !process.env.SHIPROCKET_PICKUP_LOCATION) {
+        return res.status(400).json({ error: "Shiprocket account credentials and pickup location must be configured before booking." });
+      }
+      const booking = await storage.claimShipmentBooking(order.id, "shiprocket", "production");
+      if (!booking) return res.status(409).json({ error: "Another shipment booking has started. Refresh the order." });
+      claimed = true;
       const { shiprocketOrderId, shipmentId } = await createShiprocketOrder({
         orderId: order.id,
-        subtotal: parseFloat(order.subtotal),
+        subtotal: Number((Number(order.subtotal) - Number(order.discountAmount)).toFixed(2)),
+        shippingCharge: Number(order.shippingCharge),
+        discountAmount: Number(order.discountAmount),
         customerName: order.shippingName,
         customerEmail: customer?.email || "orders@thecrunchera.com",
         customerPhone: order.shippingPhone,
@@ -665,12 +616,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updated = await storage.updateOrderShipping(order.id, {
         shiprocketOrderId,
+        shipmentBookingState: "created",
         shiprocketShipmentId: shipmentId,
         shippingStatus: "Shipment created — courier not yet assigned",
       });
 
       res.json(updated);
     } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
       console.error("Shiprocket create-shipment error:", error);
       res.status(500).json({
         error: error instanceof Error ? error.message : "Failed to create shipment",
@@ -683,12 +636,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // courier slot — typically deducts from your Shiprocket wallet balance.
   // Only call this when you're actually ready to ship the package.
   app.post("/api/admin/orders/:id/assign-courier", requireAdmin, async (req, res) => {
+    let claimed = false;
     try {
       const order = await storage.getOrderById(req.params.id);
       if (!order) {
         return res.status(404).json({ error: "Order not found" });
       }
-      if (!order.shiprocketShipmentId) {
+      if (order.shippingProvider === "delhivery" || !order.shiprocketShipmentId) {
         return res.status(400).json({
           error: "No shipment exists yet for this order — create one first",
         });
@@ -697,21 +651,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "A courier is already assigned to this order" });
       }
 
-      const { assignAWB } = await import("./shiprocket");
-      const { awbCode, courierName } = await assignAWB(order.shiprocketShipmentId);
+      const selected = await selectedShippingRate(order, req.body, "shiprocket");
+      const { assignAWB, inspectShiprocketDraft } = await import("./shiprocket");
+      if (!await storage.claimShipmentAction(order.id, order.shiprocketShipmentId, "assigning")) return res.status(409).json({ error: "Another shipment operation is running or the order is no longer paid." });
+      claimed = true;
+      const draft = await inspectShiprocketDraft(order, selected.parcel);
+      if (/cancel/i.test(draft.status)) throw new Error("This Shiprocket draft was cancelled. Verify cancellation first.");
+      const { awbCode, courierName } = await assignAWB(order.shiprocketShipmentId, selected.rate.courierId);
 
       const updated = await storage.updateOrderShipping(order.id, {
         awbCode,
         courierName,
         trackingUrl: `https://shiprocket.co/tracking/${awbCode}`,
-        shippingStatus: "Courier assigned",
+        shipmentBookingState: "created",
+        shippingStatus: "Courier assigned — pickup not yet confirmed",
       });
-      await storage.updateOrderStatus(order.id, "shipped");
+      const shippedOrder = updated; // AWB assignment does not prove pickup.
+      if (updated && shippedOrder) {
+        const { notifyCourierAssigned } = await import("./notifications");
+        await notifyCourierAssigned(shippedOrder);
+      }
 
-      res.json(updated);
+      res.json(shippedOrder ?? updated);
     } catch (error) {
+      if (claimed) await storage.updateOrderShipping(req.params.id, { shipmentBookingState: "needs_review" }).catch(() => {});
       console.error("Shiprocket assign-courier error:", error);
-      res.status(500).json({
+      res.status(claimed ? 502 : 400).json({
         error: error instanceof Error ? error.message : "Failed to assign courier",
       });
     }
@@ -727,7 +692,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const { trackShipment } = await import("./shiprocket");
-      const { status } = await trackShipment(order.awbCode);
+      const { status } = order.shippingProvider === "delhivery"
+        ? await trackDelhiveryShipment(order)
+        : await trackShipment(order.awbCode);
 
       const updated = await storage.updateOrderShipping(order.id, {
         shippingStatus: status,
@@ -745,3 +712,4 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   return httpServer;
 }
+

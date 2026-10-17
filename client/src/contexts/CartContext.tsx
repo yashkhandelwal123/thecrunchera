@@ -1,128 +1,55 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import type { Product, CartItem, Cart } from "@shared/schema";
+import { MAX_ITEM_QUANTITY } from "@shared/pricing";
 import { useToast } from "@/hooks/use-toast";
 
 interface CartContextType {
-  cart: Cart;
+  cart: Cart; itemCount: number; promoCode: string;
+  setPromoCode: (code: string) => void;
   addToCart: (product: Product, quantity?: number) => void;
-  removeFromCart: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
+  removeFromCart: (id: string) => void;
+  updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
-  itemCount: number;
 }
-
 const CartContext = createContext<CartContextType | undefined>(undefined);
-
-const CART_STORAGE_KEY = "The Crunch era_cart";
-
-export function CartProvider({ children }: { children: ReactNode }) {
-  const { toast } = useToast();
-  const [cart, setCart] = useState<Cart>(() => {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-    if (stored) {
-      try {
-        return JSON.parse(stored);
-      } catch {
-        return { items: [], total: 0 };
-      }
-    }
-    return { items: [], total: 0 };
-  });
-
-  useEffect(() => {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
-  }, [cart]);
-
-  const calculateTotal = (items: CartItem[]): number => {
-    return items.reduce((sum, item) => {
-      return sum + parseFloat(item.product.price) * item.quantity;
-    }, 0);
-  };
-
-  const addToCart = (product: Product, quantity: number = 1) => {
-    setCart((prevCart) => {
-      const existingItemIndex = prevCart.items.findIndex(
-        (item) => item.product.id === product.id
-      );
-
-      let newItems: CartItem[];
-      if (existingItemIndex >= 0) {
-        newItems = [...prevCart.items];
-        newItems[existingItemIndex] = {
-          ...newItems[existingItemIndex],
-          quantity: newItems[existingItemIndex].quantity + quantity,
-        };
-      } else {
-        newItems = [...prevCart.items, { product, quantity }];
-      }
-
-      toast({
-        title: "Added to cart",
-        description: `${product.name} has been added to your cart.`,
-      });
-
-      return {
-        items: newItems,
-        total: calculateTotal(newItems),
-      };
-    });
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCart((prevCart) => {
-      const newItems = prevCart.items.filter(
-        (item) => item.product.id !== productId
-      );
-      return {
-        items: newItems,
-        total: calculateTotal(newItems),
-      };
-    });
-  };
-
-  const updateQuantity = (productId: string, quantity: number) => {
-    if (quantity <= 0) {
-      removeFromCart(productId);
-      return;
-    }
-
-    setCart((prevCart) => {
-      const newItems = prevCart.items.map((item) =>
-        item.product.id === productId ? { ...item, quantity } : item
-      );
-      return {
-        items: newItems,
-        total: calculateTotal(newItems),
-      };
-    });
-  };
-
-  const clearCart = () => {
-    setCart({ items: [], total: 0 });
-  };
-
-  const itemCount = cart.items.reduce((sum, item) => sum + item.quantity, 0);
-
-  return (
-    <CartContext.Provider
-      value={{
-        cart,
-        addToCart,
-        removeFromCart,
-        updateQuantity,
-        clearCart,
-        itemCount,
-      }}
-    >
-      {children}
-    </CartContext.Provider>
-  );
+const KEY = "The Crunch era_cart";
+function readCart(): CartItem[] {
+  try {
+    const stored = JSON.parse(localStorage.getItem(KEY) || '{"items":[]}');
+    if (!Array.isArray(stored.items)) return [];
+    const valid = stored.items.filter((item: CartItem) => item?.product && typeof item.product.id === "string" && typeof item.product.name === "string" && typeof item.product.image === "string" && Number.isFinite(Number(item.product.price)) && Number(item.product.price) > 0 && Number.isInteger(item.quantity) && item.quantity > 0);
+    const unique = new Map<string, CartItem>();
+    for (const item of valid) unique.set(item.product.id, { ...item, quantity: Math.min(MAX_ITEM_QUANTITY, (unique.get(item.product.id)?.quantity || 0) + item.quantity) });
+    return Array.from(unique.values()).slice(0, 50);
+  } catch { return []; }
 }
-
+export function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>(readCart);
+  const [promoCode, setPromoCode] = useState(() => { try { return sessionStorage.getItem("crunch-promo") || ""; } catch { return ""; } });
+  const { toast } = useToast();
+  const cart: Cart = { items, total: items.reduce((sum, item) => sum + Number(item.product.price) * item.quantity, 0) };
+  useEffect(() => { try { localStorage.setItem(KEY, JSON.stringify({ items })); } catch { /* Shopping remains usable if browser storage is unavailable. */ } }, [items]);
+  useEffect(() => { try { sessionStorage.setItem("crunch-promo", promoCode); } catch { /* Keep in memory. */ } }, [promoCode]);
+  const addToCart = (product: Product, quantity = 1) => {
+    if (!Number.isInteger(quantity) || quantity < 1) return;
+    setItems(previous => {
+      const existing = previous.find(item => item.product.id === product.id);
+      if (existing) return previous.map(item => item.product.id === product.id ? { product, quantity: Math.min(MAX_ITEM_QUANTITY, item.quantity + quantity) } : item);
+      return [...previous, { product, quantity: Math.min(MAX_ITEM_QUANTITY, quantity) }];
+    });
+    toast({ title: "Added to your bag", description: `${product.name}. Your bag is ready when you are.` });
+  };
+  const removeFromCart = (id: string) => setItems(previous => previous.filter(item => item.product.id !== id));
+  const updateQuantity = (id: string, quantity: number) => {
+    if (!Number.isInteger(quantity)) return;
+    if (quantity <= 0) return removeFromCart(id);
+    setItems(previous => previous.map(item => item.product.id === id ? { ...item, quantity: Math.min(MAX_ITEM_QUANTITY, quantity) } : item));
+  };
+  const clearCart = () => { setItems([]); setPromoCode(""); };
+  return <CartContext.Provider value={{ cart, itemCount: items.reduce((sum, item) => sum + item.quantity, 0), promoCode, setPromoCode, addToCart, removeFromCart, updateQuantity, clearCart }}>{children}</CartContext.Provider>;
+}
 export function useCart() {
   const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error("useCart must be used within a CartProvider");
-  }
+  if (!context) throw new Error("useCart must be used within a CartProvider");
   return context;
 }
