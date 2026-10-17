@@ -134,3 +134,17 @@ body{font-size:16px;line-height:1.6}
 @media(min-width:701px) and (max-width:1000px){.hero.hero-bold{min-height:850px}.hero-bold .hero-range-card{width:19%}.hero-bold .hero-range-card:nth-child(1){top:64%}.hero-bold .hero-range-card:nth-child(2){top:61%}}
 @media(min-width:1001px){.hero.hero-bold{min-height:clamp(900px,62vw,1160px)}}
 @media(min-width:1001px){.hero-bold .hero-range-card:nth-child(1){top:56%}}
+/* Keep the entire composition on one shared artboard, including ultrawide displays. */
+.hero.hero-bold{display:block;min-height:0;padding:0}
+.hero-bold:before{display:none}
+.hero-bold-inner{position:relative;isolation:isolate;width:min(1440px,calc(100% - 64px));height:850px;margin-inline:auto;padding-top:44px}
+.hero-bold-inner:before{content:'';position:absolute;z-index:-1;width:76%;height:83%;right:-10%;top:12%;background:#e2f29c;border-radius:45% 55% 30% 60%;transform:rotate(-15deg)}
+.hero-bold .hero-copy{width:43%;max-width:590px}.hero-bold h1{font-size:clamp(56px,5.2vw,76px)}
+.hero-bold .hero-range-card{width:23%;max-width:none}
+.hero-bold .hero-range-card:nth-child(1){left:0;top:52%}.hero-bold .hero-range-card:nth-child(2){left:23%;top:46%}.hero-bold .hero-range-card:nth-child(3){left:44%;top:23%}.hero-bold .hero-range-card:nth-child(4){left:64%;top:12%}.hero-bold .hero-range-card:nth-child(5){left:80%;top:47%;width:20%}
+.hero-product-cutout{aspect-ratio:1}.hero-product-cutout img{width:145%;left:-22.5%;top:-15%}
+.hero-range-card:nth-child(5) .hero-product-cutout img{width:115%;left:-7.5%;top:-1%}
+.hero-bold .hero-range-card span{font-size:15px;margin-top:8px}.hero-bold-spark{left:53%;top:7%;font-size:56px}
+@media(min-width:701px) and (max-width:1050px){.hero-bold-inner{height:800px;width:calc(100% - 40px)}.hero-bold .hero-copy{width:48%}.hero-bold h1{font-size:56px}.hero-bold .hero-copy>p{font-size:16px}.hero-bold .hero-range-card:nth-child(1){top:61%}.hero-bold .hero-range-card:nth-child(2){top:56%}.hero-bold .hero-range-card:nth-child(3){top:35%}.hero-bold .hero-range-card:nth-child(4){top:18%}.hero-bold .hero-range-card:nth-child(5){top:55%}.hero-bold .hero-range-card span{font-size:13px}}
+@media(max-width:700px){.hero-bold-inner{height:auto;width:calc(100% - 40px);padding-block:32px 38px}.hero-bold .hero-copy{width:100%;max-width:520px}.hero-bold h1{font-size:clamp(44px,10vw,62px)}.hero-bold .hero-range-card,.hero-bold .hero-range-card:nth-child(5){position:relative;left:auto;top:auto;grid-column:span 2;width:100%;max-width:none}.hero-bold .hero-range-card:nth-child(4){grid-column:2/span 2}.hero-bold .hero-range-card span{font-size:11px}.hero-bold-inner:before{width:120%;height:65%;top:38%;right:-40%}}
+@media(min-width:1051px){.hero-bold-inner{height:950px}}
