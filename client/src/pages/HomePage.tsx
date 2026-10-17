@@ -6,15 +6,15 @@ import Faq from "@/components/Faq";
 
 export default function HomePage() {
   return <main id="main-content">
-    <section className="hero hero-showcase shell">
+    <section className="hero hero-bold">
       <div className="hero-copy"><span className="eyebrow">THE CRUNCH ERA · MAKE ROOM FOR GOOD SNACKS</span><h1>Good snacks. <em>Great little breaks.</em></h1><p>Four flavour-packed chips. Roasted edamame beans. Five ways to make your next break a little more delicious.</p><div className="hero-actions"><Link href="/products" className="btn-primary">Find your crunch <ArrowUpRight size={20} /></Link><Link href="/about" className="text-link">Meet the brand</Link></div><div className="hero-footnote"><span>Chips & roasted edamame</span><span>Find your favourite</span></div></div>
-      <div className="hero-range" aria-label="Explore all five snack varieties"><div className="hero-range-grid">{[
+      <div className="hero-range" aria-label="Explore all five snack varieties"><span className="hero-bold-spark" aria-hidden="true">✳</span><div className="hero-range-grid">{[
         { name: 'Moong Dal Chips', image: 'moong_dal_chips.webp', href: '/products' },
         { name: 'Oats Chips', image: 'oats_chips.webp', href: '/products' },
         { name: 'Ragi Chips', image: 'ragi_chips.webp', href: '/products' },
         { name: 'Mix Veg Chips', image: 'mix_veg_chips.webp', href: '/products' },
         { name: 'Edamame Beans', image: 'edamame-front.jpg', href: '/edamame-beans' },
-      ].map(product => <Link key={product.name} href={product.href} className="hero-range-card"><img src={`/product-images/${product.image}`} alt={`The Crunch Era ${product.name}`} width="400" height="400" /><span>{product.name}</span></Link>)}</div></div>
+      ].map(product => <Link key={product.name} href={product.href} className="hero-range-card"><div className="hero-product-cutout"><img src={`/product-images/${product.image}`} alt={`The Crunch Era ${product.name}`} width="800" height="800" /></div><span>{product.name}</span></Link>)}</div></div>
     </section>
     <div className="flavour-ribbon" aria-label="Our snack range"><span>RAGI</span><span aria-hidden="true">✳</span><span>OATS</span><span aria-hidden="true">✳</span><span>MOONG DAL</span><span aria-hidden="true">✳</span><span>MIX VEG</span><span aria-hidden="true">✳</span><span>EDAMAME</span></div>
     <section className="section shell" id="shop"><div className="section-heading"><div><span className="eyebrow">MEET YOUR SNACK ROTATION</span><h2>Choose your crunch.</h2></div><Link href="/products" className="text-link">Shop all snacks <ArrowUpRight size={18} /></Link></div><ProductGrid limit={4} /></section>
