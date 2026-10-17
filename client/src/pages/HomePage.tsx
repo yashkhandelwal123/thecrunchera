@@ -6,15 +6,15 @@ import Faq from "@/components/Faq";
 
 export default function HomePage() {
   return <main id="main-content">
-    <section className="hero shell">
-      <div className="hero-copy"><span className="eyebrow">THE CRUNCH ERA · MAKE ROOM FOR GOOD SNACKS</span><h1>Good snacks.<br />Great <em>little breaks.</em></h1><p>From flavour-packed chips to roasted edamame beans, find a little something for every snack moment. Open a pack. Reach for a jar. Make the break yours.</p><div className="hero-actions"><Link href="/products" className="btn-primary">Find your crunch <ArrowUpRight size={20} /></Link><Link href="/about" className="text-link">Meet the brand</Link></div><div className="hero-footnote"><span>Chips & roasted edamame</span><span>Find your favourite</span></div></div>
-      <div className="hero-range" aria-label="Explore all five snack varieties"><span className="eyebrow">FIVE WAYS TO FIND YOUR CRUNCH</span><div className="hero-range-grid">{[
+    <section className="hero hero-showcase shell">
+      <div className="hero-copy"><span className="eyebrow">THE CRUNCH ERA · MAKE ROOM FOR GOOD SNACKS</span><h1>Good snacks. <em>Great little breaks.</em></h1><p>Four flavour-packed chips. Roasted edamame beans. Five ways to make your next break a little more delicious.</p><div className="hero-actions"><Link href="/products" className="btn-primary">Find your crunch <ArrowUpRight size={20} /></Link><Link href="/about" className="text-link">Meet the brand</Link></div><div className="hero-footnote"><span>Chips & roasted edamame</span><span>Find your favourite</span></div></div>
+      <div className="hero-range" aria-label="Explore all five snack varieties"><div className="hero-range-grid">{[
         { name: 'Moong Dal Chips', image: 'moong_dal_chips.webp', href: '/products' },
         { name: 'Oats Chips', image: 'oats_chips.webp', href: '/products' },
         { name: 'Ragi Chips', image: 'ragi_chips.webp', href: '/products' },
         { name: 'Mix Veg Chips', image: 'mix_veg_chips.webp', href: '/products' },
         { name: 'Edamame Beans', image: 'edamame-front.jpg', href: '/edamame-beans' },
-      ].map(product => <Link key={product.name} href={product.href} className="hero-range-card"><img src={`/product-images/${product.image}`} alt={`The Crunch Era ${product.name}`} width="400" height="400" /><span>{product.name}</span></Link>)}</div><p>Different snacks. A shared love of crunch.</p></div>
+      ].map(product => <Link key={product.name} href={product.href} className="hero-range-card"><img src={`/product-images/${product.image}`} alt={`The Crunch Era ${product.name}`} width="400" height="400" /><span>{product.name}</span></Link>)}</div></div>
     </section>
     <div className="flavour-ribbon" aria-label="Our snack range"><span>RAGI</span><span aria-hidden="true">✳</span><span>OATS</span><span aria-hidden="true">✳</span><span>MOONG DAL</span><span aria-hidden="true">✳</span><span>MIX VEG</span><span aria-hidden="true">✳</span><span>EDAMAME</span></div>
     <section className="section shell" id="shop"><div className="section-heading"><div><span className="eyebrow">MEET YOUR SNACK ROTATION</span><h2>Choose your crunch.</h2></div><Link href="/products" className="text-link">Shop all snacks <ArrowUpRight size={18} /></Link></div><ProductGrid limit={4} /></section>
