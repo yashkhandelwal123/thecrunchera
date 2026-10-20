@@ -36,3 +36,15 @@ export function publicProduct(product: Product): Product {
 }
 
 export const productLabelNotice = "Packaging information may change. Always read the ingredients, allergen advice, warnings and directions on the pack before consuming.";
+
+// The same visible answers are used in server HTML and structured data.
+export function productFaqs(product: Pick<Product, "name" | "description">) {
+  const detail = productDetails(product);
+  const beans = /edamame/i.test(product.name);
+  return [
+    { question: beans ? "Which edamame sizes can I choose?" : "What flavour and pack size is this?", answer: beans ? "Choose a 150 g, 400 g, 800 g or 1 kg jar of Classic Salt roasted edamame beans. Select your size before adding it to your bag." : `${product.name} comes in a ${detail.packSize || 'single'} pack with ${detail.flavour} flavour. Choose your quantity above.` },
+    { question: "How can I enjoy it?", answer: beans ? "Enjoy the roasted and salted beans straight from the jar, serve a bowl during a work break, or sprinkle them over a salad or stir-fried vegetables for extra crunch." : `Enjoy ${product.name} straight from the pack at tea time, during a desk break or on a journey. You can mix different chips in the same order.` },
+    { question: "Where can I check ingredients and allergens?", answer: `${detail.ingredients ? `Ingredients: ${detail.ingredients} ` : ''}${detail.allergenAdvice || 'Contact us for allergen information before ordering.'} Always check the current pack label before eating.` },
+    { question: "What is the shelf life?", answer: detail.shelfLife || "Please check the manufacture and best-before dates on your pack. Contact us before ordering if you need the shelf-life details for the current batch." },
+  ];
+}

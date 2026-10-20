@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -17,10 +17,10 @@ import Seo from "@/components/Seo";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import CartPage from "@/pages/CartPage";
-import CheckoutPage from "@/pages/CheckoutPage";
-import OrdersPage from "@/pages/OrdersPage";
-import OrderDetailPage from "@/pages/OrderDetailPage";
-import AdminOrdersPage from "@/pages/AdminOrdersPage";
+const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"));
+const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
+const AdminOrdersPage = lazy(() => import("@/pages/AdminOrdersPage"));
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import NotFound from "@/pages/not-found";
@@ -45,11 +45,12 @@ function Router() {
     <>
       <Seo />
       {!hideChrome && <Navbar />}
-      <Switch>
+      <Suspense fallback={<main className="shell section" aria-busy="true">Loading…</main>}><Switch>
         <Route path="/" component={HomePage} />
         <Route path="/products" component={ProductsPage} />
         <Route path="/edamame-beans" component={EdamamePage} />
         <Route path="/products/:slug/:id" component={ProductDetailPage} />
+        <Route path="/products/:slug" component={ProductDetailPage} />
         <Route path="/shipping" component={ShippingPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/manufacturing-details" component={ManufacturingDetails} />
@@ -63,7 +64,7 @@ function Router() {
         <Route path="/terms-of-service" component={TermsOfServicePage} />
         {/* <Route path="/Ridhav" component={JalwaInvitation} /> */}
         <Route component={NotFound} />
-      </Switch>
+      </Switch></Suspense>
       {!hideChrome && <Footer />}
     </>
   );

@@ -4,7 +4,7 @@ import express from "express";
 import { once } from "node:events";
 import { registerSeoRoutes, renderSeoHtml, sendSeoHtml } from "./seo";
 import { storage } from "./storage";
-import { productPath, SITE_URL } from "../shared/seo";
+import { productPath, SITE_URL, variantPath } from "../shared/seo";
 
 const template = '<html><head><title>Old title</title><meta name="description" content="old"></head><body><div id="root"></div></body></html>';
 
@@ -39,6 +39,26 @@ test("HTTP sitemap, initial product HTML, redirects, 404s and noindex", async ()
     assert.ok(!xml.includes("/faq"));
     assert.ok(!xml.includes("<lastmod>"));
     assert.ok(!xml.includes("/checkout"));
+    assert.equal((xml.match(/<loc>https:\/\/thecrunchera.com\/edamame-beans<\/loc>/g) || []).length, 1);
+    for (const item of products) assert.ok(!xml.includes(item.id));
+    for (const item of products) {
+      const legacy = await fetch(base + `/products/old-slug/${item.id}`, { redirect: "manual" });
+      assert.equal(legacy.status, 301);
+      assert.equal(legacy.headers.get("location"), variantPath(item));
+      const target = await fetch(base + variantPath(item));
+      assert.equal(target.status, 200);
+      const targetHtml = await target.text();
+      assert.ok(targetHtml.includes(`rel="canonical" href="${SITE_URL + productPath(item)}"`));
+    }
+    const beansHtml = await (await fetch(base + "/edamame-beans?size=800g")).text();
+    const group = JSON.parse(beansHtml.match(/<script id="product-jsonld" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+    assert.equal(group['@type'], 'ProductGroup');
+    assert.equal(group.hasVariant.length, 4);
+    assert.deepEqual(group.hasVariant.map((v: any) => v.offers.price), ['225.00','480.00','750.00','850.00']);
+    assert.ok(group.hasVariant[2].offers.url.endsWith('?size=800g'));
+    assert.ok(!beansHtml.includes('aggregateRating'));
+    assert.ok(!beansHtml.includes('https://schema.org/InStock'));
+
     assert.ok((await (await fetch(base + "/robots.txt")).text()).includes(SITE_URL + "/sitemap.xml"));
     for (const path of ["/", "/products", productPath(product)]) {
       const response = await fetch(base + path);
@@ -50,7 +70,7 @@ test("HTTP sitemap, initial product HTML, redirects, 404s and noindex", async ()
     const redirect = await fetch(base + `/products/old-name/${product.id}`, { redirect: "manual" });
     assert.equal(redirect.status, 301);
     assert.equal(redirect.headers.get("location"), productPath(product));
-    for (const path of ["/unknown", "/products/missing/invalid"]) {
+    for (const path of ["/unknown", "/products/missing/invalid", "/products/not-a-real-product"]) {
       const response = await fetch(base + path);
       assert.equal(response.status, 404);
       assert.ok((await response.text()).includes('content="noindex, follow"'));
