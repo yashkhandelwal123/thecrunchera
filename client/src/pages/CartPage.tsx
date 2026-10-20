@@ -1,3 +1,4 @@
+import { useCommerceView } from "@/hooks/useCommerceView";
 import Money from "@/components/Money";
 import { Trash2, ArrowUpRight } from "lucide-react";
 import { useCart } from "@/contexts/CartContext";
@@ -11,6 +12,7 @@ import OrderSummary from "@/components/OrderSummary";
 export default function CartPage() {
   const { cart, itemCount, removeFromCart, updateQuantity } = useCart();
   const { data: quote, isFetching, isError } = usePricing();
+  useCommerceView("view_cart", quote, !isFetching && !isError);
   if (!cart.items.length) return <main id="main-content" className="shell section"><div className="empty-state"><span className="eyebrow">SOMETHING CRUNCHY IS MISSING</span><h1>Your bag's taking a snack break.</h1><p>Pick a flavour. Find a favourite. Let's fill it up.</p><Link className="btn-primary" href="/products">Explore the chips <ArrowUpRight size={18} /></Link></div></main>;
   return <main id="main-content" className="shell section"><div className="bag-heading"><div><span className="eyebrow">GOOD TASTE. GREAT CHOICES.</span><h1>Your snack bag.</h1><p>{itemCount} {itemCount === 1 ? "pack" : "packs"}, ready for your next break.</p></div><Link className="text-link" href="/products">Keep exploring ↗</Link></div><div className="bag-grid"><div>{cart.items.map(item => {
     const detail = productDetails(item.product); const line = quote?.lineItems.find(line => line.productId === item.product.id);

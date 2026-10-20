@@ -1,3 +1,4 @@
+import { useProductView } from "@/hooks/useCommerceView";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { useCart } from "@/contexts/CartContext";
 import QuantitySelector from "@/components/QuantitySelector";
@@ -14,7 +15,7 @@ import { productLabelNotice, productFaqs } from '@shared/catalog';
 export default function EdamamePage() {
   const search = useSearch();
   const selectedSize = new URLSearchParams(search).get("size");
-  const [variantId, setVariantId] = useState<string>(edamameVariants[0].id);
+  const [variantId, setVariantId] = useState<string>(() => edamameVariants.find(v => v.size.replace(/\s/g, "") === selectedSize)?.id || edamameVariants[0].id);
   useEffect(() => { const selected = edamameVariants.find(v => v.size.replace(/\s/g, "") === selectedSize); setVariantId(selected?.id || edamameVariants[0].id); setQuantity(1); setAdded(false); }, [selectedSize]);
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
@@ -24,6 +25,7 @@ export default function EdamamePage() {
   const { data: products } = useQuery<Product[]>({ queryKey: ['/api/products'] });
   // Purchasing uses a real catalog record and server price, never a placeholder price.
   const purchasable = products?.find(product => product.id === variantId && Number(product.price) > 0);
+  useProductView(purchasable);
   const inBag = cart.items.find(item => item.product.id === variantId)?.quantity || 0;
   const atLimit = inBag >= MAX_ITEM_QUANTITY;
   const add = (buyNow = false) => {

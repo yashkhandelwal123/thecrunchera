@@ -1,3 +1,4 @@
+import { trackProduct } from "@/lib/analytics";
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import type { Product, CartItem, Cart } from "@shared/schema";
 import { MAX_ITEM_QUANTITY } from "@shared/pricing";
@@ -32,6 +33,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => { try { sessionStorage.setItem("crunch-promo", promoCode); } catch { /* Keep in memory. */ } }, [promoCode]);
   const addToCart = (product: Product, quantity = 1) => {
     if (!Number.isInteger(quantity) || quantity < 1) return;
+    const added = Math.min(quantity, MAX_ITEM_QUANTITY - (items.find(item => item.product.id === product.id)?.quantity || 0));
+    if (added > 0) trackProduct("add_to_cart", product, added);
     setItems(previous => {
       const existing = previous.find(item => item.product.id === product.id);
       if (existing) return previous.map(item => item.product.id === product.id ? { product, quantity: Math.min(MAX_ITEM_QUANTITY, item.quantity + quantity) } : item);
@@ -39,10 +42,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
     });
     toast({ title: "Added to your bag", description: `${product.name}. Your bag is ready when you are.` });
   };
-  const removeFromCart = (id: string) => setItems(previous => previous.filter(item => item.product.id !== id));
+  const removeFromCart = (id: string) => {
+    const item = items.find(item => item.product.id === id);
+    if (item) trackProduct("remove_from_cart", item.product, item.quantity);
+    setItems(previous => previous.filter(item => item.product.id !== id));
+  };
   const updateQuantity = (id: string, quantity: number) => {
     if (!Number.isInteger(quantity)) return;
     if (quantity <= 0) return removeFromCart(id);
+    const item = items.find(item => item.product.id === id);
+    const delta = Math.min(MAX_ITEM_QUANTITY, quantity) - (item?.quantity || 0);
+    if (item && delta) trackProduct(delta > 0 ? "add_to_cart" : "remove_from_cart", item.product, Math.abs(delta));
     setItems(previous => previous.map(item => item.product.id === id ? { ...item, quantity: Math.min(MAX_ITEM_QUANTITY, quantity) } : item));
   };
   const clearCart = () => { setItems([]); setPromoCode(""); };

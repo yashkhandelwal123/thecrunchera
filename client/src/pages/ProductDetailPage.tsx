@@ -1,3 +1,4 @@
+import { useProductView } from "@/hooks/useCommerceView";
 import Money from "@/components/Money";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "wouter";
@@ -17,6 +18,7 @@ export default function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const { data: products, isLoading, isError, refetch } = useQuery<Product[]>({ queryKey: ["/api/products"] });
   const product = productForPath(location, products || []);
+  useProductView(product);
   useEffect(() => { setQuantity(1); }, [product?.id]);
   useEffect(() => { if (product && location !== productPath(product)) navigate(variantPath(product), { replace: true }); }, [product, location, navigate]);
   if (isLoading) return <main id="main-content" className="shell section" aria-busy="true">Getting your snacks ready…</main>;

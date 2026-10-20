@@ -1,3 +1,4 @@
+import { markPurchasePending, trackPurchaseById, trackConfirmedPurchase } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
@@ -11,6 +12,7 @@ import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 
 interface OrderItem {
   id: string;
+  productId: string;
   productName: string;
   productImage: string;
   unitPrice: string;
@@ -65,6 +67,8 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => { if (order) trackConfirmedPurchase(order); }, [order]);
+
   const handlePayNow = async () => {
     if (!order) return;
     setIsPaying(true);
@@ -76,6 +80,7 @@ export default function OrderDetailPage() {
       );
       const rzpOrder = await rzpOrderRes.json();
 
+      markPurchasePending(order.id);
       await openRazorpayCheckout({
         keyId: rzpOrder.keyId,
         amount: rzpOrder.amount,
@@ -90,6 +95,7 @@ export default function OrderDetailPage() {
               orderId: order.id,
               ...response,
             });
+            void trackPurchaseById(order.id);
             toast({
               title: "Payment successful!",
               description: `Your order for ₹${order.total} is confirmed.`,

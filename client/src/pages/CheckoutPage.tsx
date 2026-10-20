@@ -1,3 +1,5 @@
+import { markPurchasePending, trackPurchaseById } from "@/lib/analytics";
+import { useCommerceView } from "@/hooks/useCommerceView";
 import Money from "@/components/Money";
 import { useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
@@ -41,6 +43,7 @@ const EMPTY_FORM: ShippingForm = {
 export default function CheckoutPage() {
   const { cart, clearCart, promoCode } = useCart();
   const { data: quote, isFetching, isError, refetch } = usePricing();
+  useCommerceView("begin_checkout", quote, !isFetching && !isError);
   const [submitError, setSubmitError] = useState("");
   const submittingRef = useRef(false);
   const pendingOrderRef = useRef<{ fingerprint: string; order: { id: string; total: string } } | null>(null);
@@ -96,6 +99,7 @@ export default function CheckoutPage() {
       setPaymentStatus("awaiting-payment");
 
       // Step 3: open Razorpay's Checkout widget for the customer to pay.
+      markPurchasePending(order.id);
       await openRazorpayCheckout({
         keyId: rzpOrder.keyId,
         amount: rzpOrder.amount,
@@ -112,6 +116,7 @@ export default function CheckoutPage() {
               orderId: order.id,
               ...response,
             });
+            void trackPurchaseById(order.id);
             clearCart();
             toast({
               title: "Payment successful!",

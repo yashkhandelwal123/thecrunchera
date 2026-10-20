@@ -13,7 +13,7 @@
 ## Account setup still needed
 - Existing Google verification file: /googlebe65a447e08b2b1e.html. Its presence does not prove current Search Console ownership/status.
 - In the verified Search Console property submit or retain https://thecrunchera.com/sitemap.xml, inspect the four clean chips URLs and /edamame-beans, then request indexing after deployment.
-- GA4: no Measurement ID or installed tracking was found. Provide the GA4 web-stream G-... Measurement ID (not an API secret) and confirm the tracking/consent requirements before activating analytics. Purchase events must follow confirmed server payment, not button clicks.
+- GA4: implemented in the subsequent analytics release with G-Y4RDB3EG4E. See docs/ga4-setup.md for events, verification and browser-measurement limitations.
 - Bing Webmaster Tools: sign in and import the verified Search Console property, or provide the verification tag. Submit the same sitemap.
 - A public PageSpeed Insights API run was attempted for the production homepage with mobile strategy. Google returned 429 RESOURCE_EXHAUSTED/quota exceeded. No score or Core Web Vitals pass is claimed. Retry https://pagespeed.web.dev/analysis?url=https%3A%2F%2Fthecrunchera.com%2F after this release. Field metrics require sufficient real visitor data.
 
