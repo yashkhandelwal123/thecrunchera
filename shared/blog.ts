@@ -1,3 +1,5 @@
+import { productDetails } from "./catalog";
+
 export const edamameArticle = {
   slug: "roasted-edamame-beans-guide",
   title: "Roasted edamame beans: ingredients, nutrition & ways to enjoy",
@@ -41,7 +43,55 @@ export const edamameArticle = {
     { question: "Where can I buy The Crunch Era roasted edamame beans?", answer: "Choose your jar size on our Roasted Edamame Beans product page, add it to your bag and review the delivery charge before payment." }
   ]
 };
-export const articles = [edamameArticle];
+export const chipsArticle: typeof edamameArticle = {
+  slug: "ragi-oats-moong-dal-mix-veg-chips-guide",
+  title: "Ragi, oats, moong dal or mix veg chips: find your next crunch",
+  description: "Explore The Crunch Era’s four 60 g chips: flavours, ingredients, nutrition per 100 g, allergen advice and simple snack ideas to help you choose.",
+  category: "Snack guides", author: "The Crunch Era", published: "2026-10-20",
+  image: "/product-images/mix_veg_chips.webp",
+  imageAlt: "The Crunch Era Indian Masala Mix Veg Chips pack",
+  intro: "Sometimes you want a spicy kick. Sometimes you want a familiar masala crunch alongside your tea. The Crunch Era chips range gives you four options—ragi, oats, moong dal and mix veg—in 60 g packs. Here is a flavour-first guide to choosing your next pack, with the ingredient and nutrition details you need before you order.",
+  sections: [
+    { id: "four-flavours", title: "Four chips, four starting points", paragraphs: [
+      "Ragi Chips: choose these for bold, spicy and tangy Peri Peri seasoning. The base combines ragi flour, urad dal flour and tapioca starch, and the chips are cooked in rice bran oil. If a spicy snack is what you are after, start here.",
+      "Oats Chips: Indian Masala flavour with a crispy texture. Made with 76% oats, alongside urad dal and tapioca starch, these chips are seasoned with Himalayan pink salt and spices. A familiar savoury option for a desk break or an evening bowl.",
+      "Moong Dal Chips: a light crunch with Indian Masala seasoning. Made with 76% moong dal, blended with urad dal and tapioca starch, they offer another way to enjoy a dal-based snack at tea time.",
+      "Mix Veg Chips: beetroot, palak (spinach) and carrot meet Indian Masala seasoning. This is the option to explore when you want a vegetable-based mix in your snack rotation. All four varieties come in 60 g packs; choose individual packs or mix varieties in your bag."
+    ] },
+    { id: "ingredients", title: "What goes into each pack?", paragraphs: [
+      ...["Ragi Chips", "Oats Chips", "Moong Dal Chips", "Mix Veg Chips"].map(name => `${name}: ${productDetails({name, description: ""}).ingredients}`),
+      "Rice bran oil, Himalayan pink salt and spices appear in each ingredient list, while the main base changes between varieties. Read the complete list rather than assuming that a grain, dal or vegetable name tells you everything about a snack."
+    ] },
+    { id: "nutrition", title: "Nutrition: compare the same quantity", paragraphs: [
+      "The table below shows the per-100-g nutrition information supplied for our four current chips varieties. A pack contains 60 g, so these are not per-pack figures. When comparing snacks, use the same quantity and look at the whole panel, including energy, protein, fibre, fat and sodium.",
+      "For example, 11.2 g of protein per 100 g works out to approximately 6.72 g in a full 60 g pack. The calculation is 11.2 × 0.6. This is a quantity illustration, not a recommended serving size. The amount you eat determines your intake.",
+      "We do not rank one variety as the healthiest here. The information provided uses a shared nutrition panel, while ingredients and flavour differ. Choose according to your preferences and dietary needs, and check the current pack before eating."
+    ] },
+    { id: "allergens", title: "Check allergens before choosing", paragraphs: [
+      productDetails({name: "Ragi Chips", description: ""}).allergenAdvice!,
+      "That facility information applies to these chips and matters alongside the ingredients list. Do not assume a product is suitable for an allergy simply because an ingredient is absent from its name. Check the current packaging and ask us for clarification before ordering if you need more detail."
+    ] },
+    { id: "snack-ideas", title: "Simple ways to enjoy your chips", paragraphs: [
+      "Tea-time bowl: serve your chosen chips alongside your usual tea or coffee. Try Peri Peri ragi when you want spice, or one of the Indian Masala options for a different seasoning experience.",
+      "Office or travel break: bring a 60 g pack and enjoy the chips straight from the pack or pour your chosen portion into a bowl. No preparation is needed.",
+      "A tasting bowl with friends: put the four varieties in separate bowls so everyone can try each flavour. Keep the packs nearby so guests can check the ingredients and allergen information.",
+      "A crunchy finish: crumble a few chips over a salad or a chaat-style bowl just before eating. Taste before adding salt or spices because the chips are already seasoned. These are serving ideas; additional ingredients change the nutrition of the finished dish."
+    ] },
+    { id: "storage", title: "Pack size, shelf life and ordering", paragraphs: [
+      "Each current chips variety comes in a 60 g pack. Product pages show the current price and quantity selector. You can add different varieties to the same bag and review the delivery charge before payment.",
+      "The supplied shelf life for Oats Chips and Moong Dal Chips is six months; check the manufacture and best-before dates on your pack. For Ragi Chips and Mix Veg Chips, refer to the current pack or contact us for batch-specific shelf-life details.",
+      "Follow the storage instructions on the packaging and keep the best-before information available after opening. If you need help choosing a variety or checking a label, our contact page is a good place to ask."
+    ] }
+  ],
+  faqs: [
+    {question: "Which chips have Peri Peri flavour?", answer: "Ragi Chips have spicy and tangy Peri Peri seasoning. Oats, Moong Dal and Mix Veg Chips have Indian Masala flavour."},
+    {question: "What is the pack size?", answer: "All four current chips varieties come in 60 g packs. Select the number of packs you want on each product page."},
+    {question: "Are the nutrition figures per pack?", answer: "No. The nutrition table is per 100 g. A pack is 60 g, so multiply a per-100-g value by 0.6 to calculate the amount in a full pack."},
+    {question: "What oil is used in these chips?", answer: "Rice bran oil is listed in the ingredients for Ragi, Oats, Moong Dal and Mix Veg Chips."},
+    {question: "Can I order different varieties together?", answer: "Yes. Add your chosen packs from each product page to the same bag, then review quantities, delivery charges and your final total before payment."}
+  ]
+};
+export const articles = [edamameArticle, chipsArticle];
 export const blogPath = (article: typeof edamameArticle) => `/blog/${article.slug}`;
 export const articleForPath = (path: string) => articles.find(a => blogPath(a) === path);
 export function readingMinutes(article: typeof edamameArticle) {

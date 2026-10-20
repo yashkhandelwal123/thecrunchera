@@ -34,5 +34,5 @@ export default function ProductDetailPage() {
     </section>
     <section className="shell section"><div className="section-heading"><div><span className="eyebrow">MAKE IT A MIX</span><h2>More crunch to discover.</h2></div><Link href="/products" className="text-link">All snacks ↗</Link></div><div className="product-grid">{products?.filter(item => item.id !== product.id).slice(0, 4).map(item => <ProductCard key={item.id} product={item} />)}</div></section>
     <div className="mobile-purchase"><div><strong>{product.name}</strong><small><Money paise={toPaise(product.price) * quantity} /> · {quantity} {quantity === 1 ? "pack" : "packs"}</small></div><button className="btn-primary" disabled={atLimit} onClick={() => add()}>{atLimit ? "Pack limit reached" : "Add to bag"}</button></div>
-  </main>;
+  {detail.packSize === "60 g" && <section className="shell section"><span className="eyebrow">FROM THE JOURNAL</span><h2>Find your next crunch.</h2><p>Compare our four chips varieties, ingredients and flavours.</p><Link className="text-link" href="/blog/ragi-oats-moong-dal-mix-veg-chips-guide">Read the chips guide ↗</Link></section>}</main>;
 }

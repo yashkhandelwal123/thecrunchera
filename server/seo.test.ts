@@ -113,3 +113,20 @@ test("blog is crawlable with article schema, canonical, linked sources and corre
     assert.ok(renderSeoHtml(template,"/blog").includes('href="'+path+'"'));
   } finally { server.close(); }
 });
+
+test("chips guide publishes all four varieties without edamame nutrition leakage", () => {
+  const path = "/blog/ragi-oats-moong-dal-mix-veg-chips-guide";
+  const html = renderSeoHtml(template, path);
+  assert.equal((html.match(/<h1[ >]/g) || []).length, 1);
+  for (const slug of ["ragi", "oats", "moong-dal", "mix-veg"]) assert.ok(html.includes(`href="/products/${slug}-chips"`));
+  assert.ok(html.includes("11.2 g"));
+  assert.ok(html.includes("595 mg"));
+  assert.ok(html.includes("facility that handles soybeans"));
+  assert.ok(!html.includes("46.3 g"));
+  assert.ok(!html.includes("edamame-nutrition.jpg"));
+  assert.ok(html.includes('href="https://thecrunchera.com' + path + '"'));
+  const data = JSON.parse(html.match(/<script id="site-jsonld" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.equal(data[0]["@type"], "BlogPosting");
+  assert.ok(data[0].headline.includes("moong dal"));
+  assert.ok(renderSeoHtml(template, "/blog").includes(path));
+});
