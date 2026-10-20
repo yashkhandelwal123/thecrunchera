@@ -1,3 +1,4 @@
+import { articleForPath } from "@shared/blog";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
@@ -24,7 +25,7 @@ export default function Seo() {
     if (!needsCatalog || products) setMeta("name", "robots", metadata.noindex ? "noindex, follow" : "index, follow");
     setMeta("property", "og:title", metadata.title);
     setMeta("property", "og:description", metadata.description);
-    setMeta("property", "og:type", "website");
+    setMeta("property", "og:type", articleForPath(path) ? "article" : "website");
     setMeta("property", "og:url", SITE_URL + metadata.path);
     setMeta("property", "og:image", metadata.image);
     setMeta("name", "twitter:card", "summary_large_image");

@@ -31,7 +31,7 @@ export default function Navbar() {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
     window.addEventListener("keydown", close); return () => window.removeEventListener("keydown", close);
   }, []);
-  const links = [{ href: "/products", label: "Shop snacks" }, { href: "/about", label: "Our story" }, { href: "/shipping", label: "Shipping & offers" }];
+  const links = [{ href: "/products", label: "Shop snacks" }, { href: "/about", label: "Our story" }, { href: "/blog", label: "Journal" }, { href: "/shipping", label: "Shipping & offers" }];
   return <>
     <a className="skip-link" href="#main-content">Skip to content</a>
     <div className="announcement">A little more crunch, a little less shipping. <Link href="/shipping">Free delivery from ₹359 <span aria-hidden="true">↗</span></Link></div>

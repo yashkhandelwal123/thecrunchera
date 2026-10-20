@@ -1,3 +1,4 @@
+import BlogPage from "@/pages/BlogPage";
 import { useEffect, lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
@@ -47,6 +48,8 @@ function Router() {
       {!hideChrome && <Navbar />}
       <Suspense fallback={<main className="shell section" aria-busy="true">Loading…</main>}><Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/blog" component={BlogPage} />
+        <Route path="/blog/:slug" component={BlogPage} />
         <Route path="/products" component={ProductsPage} />
         <Route path="/edamame-beans" component={EdamamePage} />
         <Route path="/products/:slug/:id" component={ProductDetailPage} />

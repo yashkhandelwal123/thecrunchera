@@ -1,3 +1,7 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import BlogContent from "../shared/BlogContent";
+import { articleForPath } from "../shared/blog";
 import { shoppingFaqs } from "../shared/faqs";
 import { edamame, edamameVariants } from "../shared/edamame";
 import type { Express, Request, Response } from "express";
@@ -40,7 +44,7 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
     meta("name", "robots", metadata.noindex ? "noindex, follow" : "index, follow"),
     `<link rel="canonical" href="${escapeHtml(SITE_URL + metadata.path)}" />`,
     meta("property", "og:title", metadata.title), meta("property", "og:description", metadata.description),
-    meta("property", "og:type", "website"), meta("property", "og:url", SITE_URL + metadata.path),
+    meta("property", "og:type", articleForPath(path) ? "article" : "website"), meta("property", "og:url", SITE_URL + metadata.path),
     meta("property", "og:image", metadata.image), meta("name", "twitter:card", "summary_large_image"),
     meta("name", "twitter:title", metadata.title), meta("name", "twitter:description", metadata.description), meta("name", "twitter:image", metadata.image),
   ];
@@ -56,14 +60,16 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
   // It uses the same catalog data as the browser, with no separate bot response.
   const faqHtml = (faqs: { question: string; answer: string }[]) => `<section><h2>Frequently asked questions</h2>${faqs.map(f => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join("")}</section>`;
   let content = "";
-  if (product) {
+  if (path === "/blog" || articleForPath(path)) {
+    content = renderToStaticMarkup(createElement(BlogContent, { article: articleForPath(path) }));
+  } else if (product) {
     const detail = productDetails(product);
     const facts = `<h2>Pack details</h2><p>${escapeHtml(detail.flavour)}${detail.packSize ? ` · ${escapeHtml(detail.packSize)}` : ""}</p>${detail.ingredients ? `<h2>Ingredients</h2><p>${escapeHtml(detail.ingredients)}</p>` : ""}${detail.shelfLife ? `<h2>Shelf life</h2><p>${escapeHtml(detail.shelfLife)}</p>` : ""}${detail.allergenAdvice ? `<h2>Allergen advice</h2><p>${escapeHtml(detail.allergenAdvice)}</p>` : ""}${detail.nutrition ? `<table><caption>Nutritional information · per 100 g</caption><thead><tr><th scope="col">Nutrient</th><th scope="col">Per 100 g</th></tr></thead><tbody>${detail.nutrition.map(row => `<tr><th scope="row">${escapeHtml(row.name)}</th><td>${escapeHtml(row.value)}</td></tr>`).join("")}</tbody></table>` : ""}<p>${escapeHtml(productLabelNotice)}</p>`;
     content = `<main><nav><a href="/">Home</a> / <a href="/products">Snacks</a></nav><h1>${escapeHtml(product.name)}</h1><img src="${escapeHtml(metadata.image)}" alt="${escapeHtml(product.name)}" width="480" height="480"><p>${escapeHtml(product.description)}</p><p>₹${escapeHtml(product.price)}</p>${facts}${faqHtml(productFaqs(product))}<a href="/products">Browse all snacks</a></main>`;
   } else if (path === "/edamame-beans") {
     content = `<main><h1>${escapeHtml(edamame.name)}</h1><img src="${edamame.images[0].src}" alt="${escapeHtml(edamame.name)}" width="568" height="568"><p>${escapeHtml(edamame.description)}</p><p>Available sizes: ${edamameVariants.map(v => escapeHtml(v.size)).join(", ")}</p><h2>Ingredients</h2><p>${escapeHtml(edamame.ingredients)}</p><p>${escapeHtml(edamame.allergenAdvice)}</p><h2>Nutrition per 100 g</h2><ul>${edamame.nutrition.map(row => `<li>${escapeHtml(row.name)}: ${escapeHtml(row.value)}</li>`).join("")}</ul><p>Manufacturer, packer and importer: ${escapeHtml(edamame.manufacturer)}. Country of origin: ${escapeHtml(edamame.origin)}.</p>${products.filter(isEdamame).map(p => `<p><a href="${variantPath(p)}">${escapeHtml(p.name)}</a> · ₹${escapeHtml(p.price)}</p>`).join("")}${faqHtml(productFaqs({ name: edamame.name, description: edamame.description }))}<a href="/contact">Ask about ingredients or delivery</a></main>`;
   } else if (path === "/" || path === "/products") {
-    content = `<main><h1>${path === "/" ? "Chips & Roasted Edamame Beans" : "Shop Snacks Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.filter((item, i, all) => all.findIndex(p => productPath(p) === productPath(item)) === i).map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul>${path === "/" ? faqHtml(shoppingFaqs) : ""}</main>`;
+    content = `<main><h1>${path === "/" ? "Chips & Roasted Edamame Beans" : "Shop Snacks Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.filter((item, i, all) => all.findIndex(p => productPath(p) === productPath(item)) === i).map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul>${path === "/" ? faqHtml(shoppingFaqs) : ""}<a href="/blog">Read our snack guides</a></main>`;
   }
   return html.replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 }

@@ -84,3 +84,32 @@ test("HTTP sitemap, initial product HTML, redirects, 404s and noindex", async ()
     await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
   }
 });
+
+test("blog is crawlable with article schema, canonical, linked sources and correct missing-page status", async () => {
+  const path = "/blog/roasted-edamame-beans-guide";
+  const html = renderSeoHtml(template, path);
+  assert.equal((html.match(/<h1[ >]/g) || []).length, 1);
+  assert.ok(html.includes('href="https://thecrunchera.com' + path + '"'));
+  assert.ok(html.includes('content="article"'));
+  assert.ok(html.includes("46.3 g"));
+  assert.ok(html.includes("Contains soy"));
+  assert.ok(html.includes('href="/product-images/edamame-nutrition.jpg"'));
+  const data = JSON.parse(html.match(/<script id="site-jsonld" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
+  assert.equal(data[0]["@type"], "BlogPosting");
+  assert.equal(data[0].author.name, "The Crunch Era");
+  assert.equal(data[1]["@type"], "BreadcrumbList");
+  const app = express(); registerSeoRoutes(app);
+  app.get("*", async (req,res) => { await sendSeoHtml(req,res,template); });
+  const server = app.listen(0,"127.0.0.1"); await once(server,"listening");
+  const base = `http://127.0.0.1:${(server.address() as {port:number}).port}`;
+  try {
+    assert.equal((await fetch(base+path)).status,200);
+    assert.equal((await fetch(base+"/blog")).status,200);
+    const missing = await fetch(base+"/blog/not-a-real-article");
+    assert.equal(missing.status,404); assert.ok((await missing.text()).includes("noindex, follow"));
+    const sitemap = await (await fetch(base+"/sitemap.xml")).text();
+    assert.ok(sitemap.includes(SITE_URL+path));
+    assert.ok(sitemap.includes(SITE_URL+"/blog</loc>"));
+    assert.ok(renderSeoHtml(template,"/blog").includes('href="'+path+'"'));
+  } finally { server.close(); }
+});

@@ -49,6 +49,7 @@ export default function EdamamePage() {
       <details><summary>Product information<span aria-hidden="true">+</span></summary><dl className="edamame-specs"><dt>Flavour</dt><dd>{edamame.flavour}</dd><dt>Manufacturer, packer & importer</dt><dd>{edamame.manufacturer}</dd><dt>Country of origin</dt><dd>{edamame.origin}</dd><dt>Net quantity</dt><dd>{variant.size}</dd><dt>Item form</dt><dd>Whole roasted beans</dd></dl><p>Check the jar for net weight, manufacture date and use-by date.</p></details>
       <details><summary>Ways to enjoy<span aria-hidden="true">+</span></summary><p>Open the jar for a work-break snack, share a bowl on movie night, or sprinkle over stir-fried vegetables. You can also add a handful to a nuts-and-seeds mix.</p></details></div><p className="summary-note">{productLabelNotice}</p>
     </div></div>
+    <section className="section"><span className="eyebrow">FROM THE JOURNAL</span><h2 className="text-2xl my-4">New to roasted edamame?</h2><p className="text-lg mb-4">Get to know the ingredients, nutrition and a few simple ways to enjoy your jar.</p><Link className="text-link" href="/blog/roasted-edamame-beans-guide">Read our roasted edamame guide ↗</Link></section>
     <div className="section-heading section"><h2>More ways to crunch.</h2><Link href="/products" className="btn-outline">Explore our chips ↗</Link></div>
   </main>;
 }

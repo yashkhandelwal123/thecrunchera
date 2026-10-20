@@ -17,7 +17,7 @@ export default function Footer() {
   return <footer className="store-footer"><div className="shell">
     <div className="footer-grid">
       <div><BrandLogo /><p className="footer-brand-copy">For the love of a good crunch.<br />Chips & roasted edamame beans.</p></div>
-      <div><h2>Explore</h2><Link href="/products">Shop all snacks</Link><Link href="/about">Our story</Link><Link href="/orders">Your orders</Link><Link href="/contact">Contact us</Link></div>
+      <div><h2>Explore</h2><Link href="/products">Shop all snacks</Link><Link href="/about">Our story</Link><Link href="/blog">Snack journal</Link><Link href="/orders">Your orders</Link><Link href="/contact">Contact us</Link></div>
       <div><h2>Good to know</h2><Link href="/shipping">Shipping & offers</Link><Link href="/terms-of-service">Returns & terms</Link><Link href="/privacy-policy">Privacy policy</Link></div>
       <div className="footer-newsletter"><h2>A little crunch in your inbox.</h2><p>Sign up for product news and offers.</p><form onSubmit={subscribe}><label className="sr-only" htmlFor="newsletter-email">Email address</label><input id="newsletter-email" type="email" autoComplete="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address" /><button aria-label="Subscribe to newsletter" disabled={busy}><ArrowUpRight /></button></form><p role="status" className="fine-print">{message || "By subscribing, you agree to receive our emails. See our privacy policy."}</p></div>
     </div>

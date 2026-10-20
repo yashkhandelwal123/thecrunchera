@@ -1,3 +1,4 @@
+import { articles, articleForPath, blogPath } from "./blog";
 import type { Product } from "./schema";
 import { productDetails, productFaqs } from "./catalog";
 import { edamame, edamameVariants } from "./edamame";
@@ -6,6 +7,8 @@ import { shoppingFaqs } from "./faqs";
 export const SITE_URL = "https://thecrunchera.com";
 export const BRAND = "The Crunch Era";
 export const publicPages: Record<string, { title: string; description: string }> = {
+  "/blog": { title: `Snack Guides & Ideas | ${BRAND} Journal`, description: "Explore ingredient guides, product nutrition and simple snack ideas from The Crunch Era. Start with our guide to roasted edamame beans." },
+  ...Object.fromEntries(articles.map(a => [blogPath(a), { title: `${a.title} | ${BRAND}`, description: a.description }])),
   "/": { title: `Chips & Roasted Edamame Beans | ${BRAND}`, description: "Shop ragi, oats, moong dal and mix veg chips from The Crunch Era. Discover Classic Salt roasted edamame beans alongside your favourite chips." },
   "/products": { title: `Shop Chips & Roasted Edamame | ${BRAND}`, description: "Browse ragi, oats, moong dal and mix veg chips. Explore our Classic Salt roasted edamame beans, too." },
   "/edamame-beans": { title: `Roasted Edamame Beans, Classic Salt | ${BRAND}`, description: "Discover The Crunch Era roasted and salted edamame beans. View ingredients, soy allergen advice and nutrition: 46.3 g protein per 100 g." },
@@ -51,6 +54,8 @@ export function productSchema(product: Product) {
 
 export function pageMetadata(path: string, product?: Product) {
   if (product) return { title: `Buy ${product.name} Online | ${BRAND}`, description: productDetails(product).metaDescription || product.description, path: productPath(product), noindex: false, image: new URL(product.image, SITE_URL).href };
+  const article = articleForPath(path);
+  if (article) return { title: `${article.title} | ${BRAND}`, description: article.description, path, noindex: false, image: SITE_URL + article.image };
   const page = publicPages[path];
   return { title: page?.title || `The Crunch Era`, description: page?.description || "Shop and manage your orders at The Crunch Era.", path, noindex: !page, image: SITE_URL + (path === "/edamame-beans" ? "/product-images/edamame-front.jpg" : "/product-images/ragi_chips.webp") };
 }
@@ -68,6 +73,11 @@ export function edamameSchema(products: Product[]) {
     productGroupID: "crunch-era-edamame", variesBy: ["https://schema.org/size"], hasVariant: variants };
 }
 export function supplementalSchema(path: string, product?: Product) {
+  const article = articleForPath(path);
+  if (article) return [
+    { "@context": "https://schema.org", "@type": "BlogPosting", "@id": SITE_URL + path + "#article", mainEntityOfPage: { "@type": "WebPage", "@id": SITE_URL + path }, headline: article.title, description: article.description, image: [SITE_URL + article.image], datePublished: article.published, dateModified: article.published, author: { "@type": "Organization", name: article.author, url: SITE_URL + "/about" }, publisher: { "@type": "Organization", name: BRAND, url: SITE_URL, logo: { "@type": "ImageObject", url: SITE_URL + "/brand-logo-olive.jpeg" } }, inLanguage: "en-IN", articleSection: article.category },
+    { "@context": "https://schema.org", "@type": "BreadcrumbList", itemListElement: [{ "@type": "ListItem", position: 1, name: "Home", item: SITE_URL + "/" }, { "@type": "ListItem", position: 2, name: "Journal", item: SITE_URL + "/blog" }, { "@type": "ListItem", position: 3, name: article.title, item: SITE_URL + path }] }
+  ];
   const faqs = product ? productFaqs(product) : path === EDAMAME_PATH ? productFaqs({ name: edamame.name, description: edamame.description }) : path === "/" ? shoppingFaqs : [];
   return [ ...(path === "/" ? [{ "@context": "https://schema.org", "@type": "Organization", "@id": SITE_URL + "#organization", name: BRAND, url: SITE_URL, logo: SITE_URL + "/brand-logo-olive.jpeg" }] : []),
     ...(faqs.length ? [{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: faqs.map(f => ({ "@type": "Question", name: f.question, acceptedAnswer: { "@type": "Answer", text: f.answer } })) }] : []) ];
