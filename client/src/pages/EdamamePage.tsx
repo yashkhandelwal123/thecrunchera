@@ -1,3 +1,4 @@
+import LearningMessage from "@/components/LearningMessage";
 import { useProductView } from "@/hooks/useCommerceView";
 import ProductImageGallery from "@/components/ProductImageGallery";
 import { useCart } from "@/contexts/CartContext";
@@ -37,7 +38,7 @@ export default function EdamamePage() {
   return <main id="main-content" className="shell section">
     <nav className="breadcrumb" aria-label="Breadcrumb"><Link href="/">Home</Link><span>/</span><Link href="/products">Snacks</Link><span>/</span><span aria-current="page">Edamame beans</span></nav>
     <div className="detail-grid"><ProductImageGallery images={edamame.images} />
-    <div className="detail-copy"><span className="eyebrow">THE CRUNCH ERA · CLASSIC SALT</span><h1>Roasted edamame beans.<br />Classic Salt.</h1><p>{edamame.description}</p><span className="pack-pill">{variant.size} · Jar</span><div className="edamame-facts"><span>46.3 g protein / 100 g</span><span>14.92 g fibre / 100 g</span><span>Roasted, not fried</span></div>
+    <div className="detail-copy"><span className="eyebrow">THE CRUNCH ERA · CLASSIC SALT</span><h1>Roasted edamame beans.<br />Classic Salt.</h1><LearningMessage /><span className="pack-pill">{variant.size} · Jar</span><div className="edamame-facts"><span>46.3 g protein / 100 g</span><span>14.92 g fibre / 100 g</span><span>Roasted, not fried</span></div>
       <fieldset className="variant-picker"><legend>Choose your jar size</legend><div>{edamameVariants.map(option => <label key={option.id} className={variantId === option.id ? 'variant-option selected' : 'variant-option'}><input type="radio" name="edamame-size" value={option.id} checked={variantId === option.id} onChange={() => { setVariantId(option.id); setQuantity(1); setAdded(false); navigate(`/edamame-beans?size=${option.size.replace(/\s/g, "")}`, { replace: true }); }} /><strong>{option.size}</strong><span><Money paise={toPaise(products?.find(p => p.id === option.id)?.price || option.price)} /></span></label>)}</div></fieldset>
       <div className="detail-price"><Money paise={toPaise(purchasable?.price || variant.price)} /></div><p className="price-caption">Per {variant.size} jar · delivery calculated in your bag</p>
       <div className="purchase-row"><QuantitySelector value={quantity} onChange={setQuantity} name={`Edamame ${variant.size}`} max={Math.max(1, MAX_ITEM_QUANTITY - inBag)} /><button className="btn-primary" disabled={!purchasable || atLimit} onClick={() => add()}>{atLimit ? 'Jar limit reached' : added ? 'Added to bag ✓' : 'Add to bag'}</button></div>

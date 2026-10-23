@@ -5,6 +5,7 @@ initAnalytics();
 import "./index.css";
 import "./store.css";
 import "./blog.css";
+import "./growth.css";
 
 createRoot(document.getElementById("root")!).render(<App />);
 

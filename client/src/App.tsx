@@ -21,6 +21,7 @@ import CartPage from "@/pages/CartPage";
 const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"));
 const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
 const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
+const AdminGrowthPage = lazy(() => import("@/pages/AdminGrowthPage"));
 const AdminOrdersPage = lazy(() => import("@/pages/AdminOrdersPage"));
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
@@ -62,6 +63,7 @@ function Router() {
         <Route path="/checkout" component={CheckoutPage} />
         <Route path="/orders" component={OrdersPage} />
         <Route path="/orders/:id" component={OrderDetailPage} />
+        <Route path="/admin/growth" component={AdminGrowthPage} />
         <Route path="/admin/orders" component={AdminOrdersPage} />
         <Route path="/privacy-policy" component={PrivacyPolicyPage} />
         <Route path="/terms-of-service" component={TermsOfServicePage} />

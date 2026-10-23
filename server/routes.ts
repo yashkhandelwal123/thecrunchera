@@ -1,3 +1,4 @@
+import { registerGrowthRoutes, linkGrowthOrder, recordGrowthPayment } from "./growth";
 import type { Express } from "express";
 import { notifyContactQuery } from "./contactNotification";
 import { z } from "zod";
@@ -185,6 +186,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     next();
   }
 
+  registerGrowthRoutes(app, requireAdmin);
+
   // Public quote: all prices are read from storage, never from client totals.
   app.post("/api/checkout/quote", async (req, res) => {
     const parsed = quoteSchema.safeParse(req.body);
@@ -234,6 +237,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         quote.lineItems,
       );
 
+      await linkGrowthOrder(req, order.id);
       res.status(201).json(order);
     } catch (error) {
       console.error("Create order error:", error);
@@ -359,6 +363,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const updated = await storage.markOrderPaid(order.id, razorpay_payment_id);
 
+      void recordGrowthPayment(order.id);
+
       // Only the request that atomically changes pending -> paid sends notifications.
       if (updated) {
         const items = await storage.getOrderItems(order.id);
@@ -412,6 +418,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           const order = await storage.getOrderByRazorpayOrderId(razorpayOrderId);
           if (order && order.status === "pending") {
             const updated = await storage.markOrderPaid(order.id, razorpayPaymentId);
+            void recordGrowthPayment(order.id);
             if (updated) {
               const items = await storage.getOrderItems(order.id);
               const { notifyNewOrder } = await import("./notifications");

@@ -93,7 +93,7 @@ export async function sendSeoHtml(req: Request, res: Response, template: string)
     res.redirect(301, variantPath(product));
     return;
   }
-  const privateRoute = /^\/(cart|checkout|orders(?:\/[^/]+)?|admin\/orders|manufacturing-details)$/.test(path);
+  const privateRoute = /^\/(cart|checkout|orders(?:\/[^/]+)?|admin\/(?:orders|growth)|manufacturing-details)$/.test(path);
   const status = publicPages[path] || product || privateRoute ? 200 : 404;
   // Avoid caching catalog prices or accidental private-route responses at a CDN.
   res.status(status).set("Cache-Control", "no-cache").type("html").send(renderSeoHtml(template, path, product, products));

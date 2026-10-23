@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import ShippingPlanner from "@/components/ShippingPlanner";
 import { useEffect, useState } from "react";
 import { fetchApi, readApiJson } from "@/lib/apiResponse";
@@ -164,7 +165,7 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto"><Link href="/admin/growth" className="text-link">Growth lab ↗</Link>
         <h1 className="font-heading font-bold text-3xl mb-8">
           All Orders ({orders.length})
         </h1>

@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, decimal, integer, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, decimal, integer, timestamp, jsonb, boolean, uuid, doublePrecision, bigserial } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -195,4 +195,25 @@ export interface Testimonial {
 export const shippingPlans = pgTable("shipping_plans", {
   orderId: varchar("order_id").primaryKey().references(() => orders.id),
   plan: jsonb("plan").notNull().$type<import("./shipping").ShippingPlan>(),
+});
+
+// Growth lab: additive tables, initialised by an approved admin experiment start.
+export const growthExperiments = pgTable("growth_experiments", {
+  id: text("id").primaryKey(), running: boolean("running").notNull().default(false),
+  updatedAt: timestamp("updated_at", {withTimezone:true}).notNull().defaultNow(),
+});
+export const growthAssignments = pgTable("growth_assignments", {
+  id: uuid("id").primaryKey(), visitorKey: text("visitor_key").notNull().unique(), experimentId: text("experiment_id").notNull().references(()=>growthExperiments.id),
+  variant: text("variant").notNull(), probability: doublePrecision("probability").notNull(),
+  assignedAt: timestamp("assigned_at", {withTimezone:true}).notNull().defaultNow(),
+  viewedAt: timestamp("viewed_at", {withTimezone:true}),
+});
+export const growthOrderLinks = pgTable("growth_order_links", {
+  orderId: varchar("order_id").primaryKey().references(()=>orders.id),
+  assignmentId: uuid("assignment_id").notNull().references(()=>growthAssignments.id),
+  verifiedAt: timestamp("verified_at", {withTimezone:true}),
+});
+export const growthAudit = pgTable("growth_audit", {
+  id: bigserial("id",{mode:"number"}).primaryKey(),action:text("action").notNull(),actorId:varchar("actor_id").notNull(),
+  createdAt:timestamp("created_at", {withTimezone:true}).notNull().defaultNow(),
 });
