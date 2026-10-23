@@ -1,3 +1,4 @@
+import { logDatabaseError } from "./databasePool";
 import "dotenv/config";
 import { installEdamameCatalog } from "./edamameSeeds";
 import express, { type Request, Response, NextFunction } from "express";
@@ -51,6 +52,7 @@ app.use(
       ? new PgSession({
           conString: process.env.DATABASE_URL,
           createTableIfMissing: true,
+          errorLog: (...args: unknown[]) => logDatabaseError(args[1] ?? args[0], "session"),
         })
       : new MemoryStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
