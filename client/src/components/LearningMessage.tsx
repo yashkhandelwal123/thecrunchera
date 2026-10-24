@@ -5,6 +5,8 @@ function allowed() {
 }
 export default function LearningMessage() {
   const [enabled,setEnabled]=useState(allowed);
+  const [showChoice,setShowChoice]=useState(()=>{try{return localStorage.getItem("crunch-growth-consent")===null && localStorage.getItem("crunch-analytics-disabled")!=="1" && !(navigator as any).globalPrivacyControl;}catch{return false;}});
+  function chooseConsent(value:boolean){try{localStorage.setItem("crunch-growth-consent",value?"1":"0");setEnabled(value&&allowed());setShowChoice(false);}catch{setShowChoice(false);}}
   const [assignment,setAssignment]=useState<{id:string;message:string}|null>(null);
   const ref=useRef<HTMLParagraphElement>(null);
   useEffect(()=>{
@@ -24,5 +26,5 @@ export default function LearningMessage() {
     },{threshold:0.5});
     observer.observe(ref.current);return ()=>observer.disconnect();
   },[assignment]);
-  return <p ref={ref}>{assignment?.message || edamame.description}</p>;
+  return <><p ref={ref}>{assignment?.message || edamame.description}</p>{showChoice&&<aside className="growth-consent" aria-label="Optional message testing"><p>Help us improve product information? With permission, we can test descriptions and link your message view to a paid order within 7 days. Participation is optional. <a href="/privacy-policy">Details and withdrawal</a>.</p><div><button type="button" className="btn-outline" onClick={()=>chooseConsent(true)}>Allow message testing</button><button type="button" className="btn-outline" onClick={()=>chooseConsent(false)}>No thanks</button></div></aside>}</>;
 }

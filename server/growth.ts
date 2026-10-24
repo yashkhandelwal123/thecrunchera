@@ -87,6 +87,7 @@ export function registerGrowthRoutes(app: Express, requireAdmin: RequestHandler)
   });
   app.post("/api/admin/growth/state",requireAdmin,safeAdmin,async(req,res)=>{
     if (typeof req.body?.running !== "boolean") return void res.status(400).json({error:"Choose start or pause."});
+    if (req.body.running && req.body.claimVerified !== true) return void res.status(400).json({error:"Confirm that the protein wording matches the current product label and supporting evidence before starting."});
     if (!process.env.DATABASE_URL) return void res.status(503).json({error:"Connect a PostgreSQL database to store experiments. Local previews do not collect data."});
     try {
       const {pool}=await import("./db"); const client=await pool.connect();
@@ -94,7 +95,7 @@ export function registerGrowthRoutes(app: Express, requireAdmin: RequestHandler)
         await client.query("BEGIN");
         await client.query(growthMigration);
         await client.query("INSERT INTO growth_experiments(id,running) VALUES($1,$2) ON CONFLICT(id) DO UPDATE SET running=$2,updated_at=now()",[experiment.id,req.body.running]);
-        await client.query("INSERT INTO growth_audit(action,actor_id) VALUES($1,$2)",[req.body.running?"Approved fixed 50/50 test":"Paused new assignments",req.session.userId]);
+        await client.query("INSERT INTO growth_audit(action,actor_id) VALUES($1,$2)",[req.body.running?"Approved fixed 50/50 test; admin confirmed label and claim evidence":"Paused new assignments",req.session.userId]);
         await client.query("COMMIT");
       } catch(e) { await client.query("ROLLBACK");throw e; } finally {client.release();}
       res.json({ok:true});

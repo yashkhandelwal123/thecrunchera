@@ -4,7 +4,7 @@ import express from "express";
 import {once} from "node:events";
 import {PGlite} from "@electric-sql/pglite";
 import {registerGrowthRoutes,linkGrowthOrder,recordGrowthPayment} from "./growth";
-import {chooseVariant,learningSummary} from "../shared/growth";
+import {chooseVariant,learningSummary,betaInterval,estimateDuration} from "../shared/growth";
 import {edamameVariants} from "../shared/edamame";
 
 test("allocation and learning refuse early winner claims",()=>{
@@ -32,7 +32,8 @@ test("Postgres experiment lifecycle: access, opt-in, stability, dedupe, paid out
     assert.equal((await request("/api/admin/growth")).status,403);
     assert.equal((await (await request("/api/admin/growth",undefined,true)).json()).installed,false);
     assert.equal((await request("/api/admin/growth/state",{running:true},true,"guest","https://evil.invalid")).status,403);
-    assert.equal((await request("/api/admin/growth/state",{running:true},true)).status,200);
+    assert.equal((await request("/api/admin/growth/state",{running:true},true)).status,400);
+    assert.equal((await request("/api/admin/growth/state",{running:true,claimVerified:true},true)).status,200);
     assert.equal((await (await request("/api/growth/assignment",{consent:false})).json()).active,false);
     const a=await (await request("/api/growth/assignment",{consent:true})).json();assert.equal(a.active,true);
     assert.equal((await (await request("/api/growth/assignment",{consent:true})).json()).id,a.id);
@@ -58,4 +59,13 @@ test("Postgres experiment lifecycle: access, opt-in, stability, dedupe, paid out
     await new Promise<void>(resolve=>server.close(()=>resolve()));await database.close();
     if(saved===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=saved;
   }
+});
+
+test("credible intervals and feasibility estimates expose sparse evidence",()=>{
+  const uniform=betaInterval(1,1);assert.ok(Math.abs(uniform[0]-.025)<1e-9);assert.ok(Math.abs(uniform[1]-.975)<1e-9);
+  const zero=betaInterval(1,101);assert.ok(Math.abs(zero[1]-(1-Math.pow(.025,1/101)))<1e-9);
+  const balanced=betaInterval(51,51);assert.ok(Math.abs(balanced[0]+balanced[1]-1)<1e-9);
+  assert.ok(betaInterval(501,501)[1]-betaInterval(501,501)[0]<balanced[1]-balanced[0]);
+  assert.equal(estimateDuration(100,10,2)?.days,107);
+  assert.equal(estimateDuration(0,10,2),null);assert.equal(estimateDuration(100,101,2),null);assert.equal(estimateDuration(100,10,0),null);
 });

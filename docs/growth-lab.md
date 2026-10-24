@@ -5,15 +5,15 @@ URL: `/admin/growth`. Uses the existing ADMIN_EMAILS server check. No new API ke
 ## Launch
 
 Deploy with the experiment paused and no automatic database migration. Sign in
-as an administrator, review the two fixed messages, check the approval box,
+as an administrator, review the two fixed messages, check the approval and label-evidence confirmation boxes,
 and select Approve and start test. This transaction creates only the four
 `growth_*` tables if missing and records the approval. It requires CREATE TABLE
 permission. No existing table is altered or deleted. A database failure leaves
 the product description unchanged. The dashboard displays an actionable error.
 
-Participants must explicitly opt in on `/privacy-policy` and must not have
+Participants must explicitly opt in through the inline product-page prompt or `/privacy-policy` and must not have
 browser analytics disabled or Global Privacy Control enabled. This limits the
-sample to volunteers; do not generalise results to every shopper. There is no
+sample to volunteers; do not generalise results to every shopper. There is an inline, dismissible prompt with equal allow/decline controls; no
 recruitment popup and no tracking before opt-in. Signed-in admins and common
 crawler user agents are excluded. Anonymous admins cannot be recognised.
 
@@ -25,9 +25,8 @@ in the existing server session and remains stable for that session. Assignments
 log selection probability (0.5), first visible exposure and timestamps. Clearing
 cookies, signing out or another device can create a new experimental unit.
 This first release is a randomised experiment plus a Bayesian shadow learner,
-not a contextual bandit or an autonomously retrained LLM. The Beta(1,1) posterior
-mean updates when the admin refreshes data. No allocation changes automatically.
-A gate of 100 mature viewed sessions per arm and 20 converted sessions permits
+not a contextual bandit or an autonomously retrained LLM. The Beta(1,1) posterior mean and 95% equal-tail credible interval update when the admin refreshes data. No allocation changes automatically.
+A gate of 100 mature viewed sessions per arm and 20 converted sessions overall permits
 review, not a claim of statistical significance. No winner is declared.
 
 Seven days after first exposure, the session becomes mature. An attributed
@@ -70,3 +69,23 @@ statistical evaluation with uncertainty and an untouched holdout. Only then
 consider bounded adaptive selection, with action probabilities recorded and
 versioned policies. Ad spend, messaging campaigns, external API calls, automatic
 content publishing and LLM fine-tuning are not implemented or enabled.
+
+## Feasibility and uncertainty update
+
+The existing cookie lasts 30 days; a return three days later does not normally
+create a new assignment. No new persistent tracking ID was added. Cookie loss,
+session regeneration and other devices remain limitations.
+
+The dashboard calculator takes measured daily edamame-page sessions, expected
+opt-in-and-view percentage and participant conversion percentage. It estimates
+ceil(max(200,20/conversionRate)/eligibleViewsPerDay)+7 days from a fresh start.
+Inputs start blank. This is a review-gate planning estimate, not a power analysis;
+random allocation and uncertain inputs can extend it. GA4 account data is not
+connected and Amazon traffic must not be substituted. Over 90 days triggers a
+practical caution. Conversion is primary; whole-order revenue is secondary.
+
+Starting now requires explicit claimVerified=true, enforced server-side and
+recorded in the audit action. This is an admin attestation, not verification by
+this software or a legal certification. No existing test is automatically started
+or stopped by deploying this update. Before/after observations are descriptive,
+not causal experiments. No Clarity integration or consent-policy relaxation.
