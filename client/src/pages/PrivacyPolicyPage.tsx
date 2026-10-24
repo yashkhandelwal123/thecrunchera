@@ -1,4 +1,7 @@
+import { useState } from "react";
 export default function PrivacyPolicyPage() {
+  const [analyticsDisabled, setAnalyticsDisabled] = useState(() => { try { return localStorage.getItem("crunch-analytics-disabled") === "1"; } catch { return false; } });
+  const [growthEnabled,setGrowthEnabled] = useState(() => {try{return localStorage.getItem("crunch-growth-consent")==="1";}catch{return false;}});
   return (
     <div className="min-h-screen pt-24 pb-16 px-6">
       <div className="max-w-3xl mx-auto prose prose-sm">
@@ -72,6 +75,17 @@ export default function PrivacyPolicyPage() {
           </section>
 
           <section>
+            <h2 className="font-heading font-semibold text-lg mb-2">Website analytics</h2>
+            <p>We use Google Analytics to understand visits, product interest, cart activity and completed purchases. Analytics may use cookies and browser/device information. We send product IDs, quantities, order transaction IDs and purchase amounts; we do not include your name, email, phone number, delivery address or payment details in our analytics events. Advertising personalisation and Google signals are disabled in our tag configuration.</p>
+            <p>You can disable analytics in this browser. This does not affect shopping or checkout.</p>
+            <button type="button" className="underline" onClick={() => { try { localStorage.setItem("crunch-analytics-disabled", analyticsDisabled ? "0" : "1"); setAnalyticsDisabled(!analyticsDisabled); void fetch("/api/growth/opt-out",{method:"POST",credentials:"include"}).finally(()=>window.location.reload()); } catch { /* Browser storage is unavailable. */ } }}>{analyticsDisabled ? "Enable analytics in this browser" : "Disable analytics in this browser"}</button>
+          </section>
+          <section>
+            <h2 className="font-heading font-semibold text-lg mb-2">Optional product-message experiments</h2>
+            <p>With your permission, we may show an approved alternative product description and use the existing session identifier (the session cookie is configured for 30 days; clearing it or signing out can reset assignment) to measure whether it was viewed and led to a paid order within seven days. Experiment records link to orders internally; names, emails and addresses are not copied into the experiment report. Results help us improve product information. You can opt in on the product page or here. Participation is optional, depends on an active test, and stops when you opt out. Existing experiment records remain until you request deletion through our contact page. Disabling analytics also disables participation in this browser on the next product-page visit.</p>
+            <button className="underline" type="button" onClick={() => {try{const next=!growthEnabled;localStorage.setItem("crunch-growth-consent",next?"1":"0");setGrowthEnabled(next);if(!next)void fetch("/api/growth/opt-out",{method:"POST",credentials:"include"});}catch{}}}>{growthEnabled?"Stop participating in message experiments":"Allow product-message experiments"}</button>
+          </section>
+          <section>
             <h2 className="font-heading font-semibold text-lg mb-2">7. Changes to This Policy</h2>
             <p>
               We may update this Privacy Policy from time to time. Continued
@@ -96,3 +110,4 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
+

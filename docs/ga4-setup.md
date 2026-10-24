@@ -1,0 +1,10 @@
+# GA4 release
+Public Measurement ID: G-Y4RDB3EG4E. No environment variable or database migration needed.
+
+The tag loads only on thecrunchera.com and www.thecrunchera.com. Enhanced measurement owns page views (including browser history changes); do not also add a manual page_view tag or another GA4 installation. Keep Enhanced measurement > Page views > Page changes based on browser history events enabled. Do not install the same tag separately through GTM.
+
+Implemented: view_item (selected catalog SKU), add_to_cart, remove_from_cart (quantity deltas), view_cart, begin_checkout, purchase. Purchase uses an authenticated order response, paid/shipped/delivered status, actual saved prices, allocated discount and separate shipping. A recent payment-attempt marker prevents historical account visits from being reported as new sales; a persistent transaction marker and transaction_id prevent repeat reporting on refresh/retry. No names, emails, phones, addresses or payment credentials are included in custom event payloads. Google signals and ad personalisation disabled. Privacy page describes analytics and includes a browser opt-out.
+
+Limitations: this is browser-based measurement. Ad blockers, opt-outs, blocked cookies/scripts, browser closures before confirmation, or payment completion on another device can leave sales unreported. A webhook-only confirmation is captured when the same browser revisits its marked order within 7 days. GA4 is not the financial source of truth. Refund events and Measurement Protocol server delivery are not implemented. Never put an API secret in client code.
+
+After deployment: GA4 > Admin > Data streams > web stream > Test installation. Open the site with blocking extensions disabled for your own test and check Reports > Realtime. Inspect ecommerce events in DebugView using Tag Assistant. Use a real confirmed order or a separate test property for purchase validation; do not create fake sales in production reports. Standard reports can take time to populate. No historical visits are backfilled.

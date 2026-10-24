@@ -1,3 +1,4 @@
+import { markPurchasePending, trackPurchaseById, trackConfirmedPurchase } from "@/lib/analytics";
 import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import { motion } from "framer-motion";
@@ -11,6 +12,7 @@ import { CheckCircle2, Clock, Loader2 } from "lucide-react";
 
 interface OrderItem {
   id: string;
+  productId: string;
   productName: string;
   productImage: string;
   unitPrice: string;
@@ -21,6 +23,9 @@ interface OrderDetail {
   id: string;
   status: string;
   subtotal: string;
+  discountAmount: string;
+  shippingCharge: string;
+  promoCode: string | null;
   total: string;
   shippingName: string;
   shippingPhone: string;
@@ -62,6 +67,8 @@ export default function OrderDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
+  useEffect(() => { if (order) trackConfirmedPurchase(order); }, [order]);
+
   const handlePayNow = async () => {
     if (!order) return;
     setIsPaying(true);
@@ -73,6 +80,7 @@ export default function OrderDetailPage() {
       );
       const rzpOrder = await rzpOrderRes.json();
 
+      markPurchasePending(order.id);
       await openRazorpayCheckout({
         keyId: rzpOrder.keyId,
         amount: rzpOrder.amount,
@@ -87,6 +95,7 @@ export default function OrderDetailPage() {
               orderId: order.id,
               ...response,
             });
+            void trackPurchaseById(order.id);
             toast({
               title: "Payment successful!",
               description: `Your order for ₹${order.total} is confirmed.`,
@@ -201,6 +210,12 @@ export default function OrderDetailPage() {
               </div>
             </div>
           ))}
+          <div className="order-breakdown">
+            <div><span>Product subtotal</span><span>₹{order.subtotal}</span></div>
+            <div><span>Shipping</span><span>₹{Number(order.shippingCharge || 0).toFixed(2)}</span></div>
+            <div><span>Discount {order.promoCode && `(${order.promoCode})`}</span><span>−₹{Number(order.discountAmount || 0).toFixed(2)}</span></div>
+            <div><span>Additional taxes / fees</span><span>₹0.00</span></div>
+          </div>
           <div className="border-t pt-3 flex justify-between font-bold text-lg">
             <span>Total</span>
             <span className="text-primary">₹{order.total}</span>
@@ -262,3 +277,4 @@ export default function OrderDetailPage() {
     </div>
   );
 }
+

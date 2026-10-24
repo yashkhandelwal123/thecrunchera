@@ -1,6 +1,9 @@
+import { logDatabaseError } from "./databasePool";
 import "dotenv/config";
+import { installEdamameCatalog } from "./edamameSeeds";
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
+import { apiErrorHandler, apiNotFound } from "./apiErrors";
 import session from "express-session";
 import connectPgSimple from "connect-pg-simple";
 import createMemoryStore from "memorystore";
@@ -49,6 +52,7 @@ app.use(
       ? new PgSession({
           conString: process.env.DATABASE_URL,
           createTableIfMissing: true,
+          errorLog: (...args: unknown[]) => logDatabaseError(args[1] ?? args[0], "session"),
         })
       : new MemoryStore({ checkPeriod: 1000 * 60 * 60 * 24 }),
     secret: process.env.SESSION_SECRET || "dev-secret-change-me",
@@ -93,15 +97,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  await installEdamameCatalog();
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
-    throw err;
-  });
+  app.use("/api", apiNotFound);
+  app.use(apiErrorHandler);
 
   // importantly only setup vite in development and after
   // setting up all the other routes so the catch-all route
@@ -125,3 +125,4 @@ app.use((req, res, next) => {
     log(`serving on port ${port}`);
   });
 })();
+
