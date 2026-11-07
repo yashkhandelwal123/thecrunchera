@@ -56,6 +56,7 @@ test("HTTP sitemap, initial product HTML, redirects, 404s and noindex", async ()
     assert.equal(group.hasVariant.length, 4);
     assert.deepEqual(group.hasVariant.map((v: any) => v.offers.price), ['225.00','480.00','750.00','850.00']);
     assert.ok(group.hasVariant[2].offers.url.endsWith('?size=800g'));
+    assert.ok(beansHtml.includes('href="/blog/roasted-edamame-beans-guide"'));
     assert.ok(!beansHtml.includes('aggregateRating'));
     assert.ok(!beansHtml.includes('https://schema.org/InStock'));
 
@@ -97,6 +98,8 @@ test("blog is crawlable with article schema, canonical, linked sources and corre
   const data = JSON.parse(html.match(/<script id="site-jsonld" type="application\/ld\+json">([\s\S]*?)<\/script>/)![1]);
   assert.equal(data[0]["@type"], "BlogPosting");
   assert.equal(data[0].author.name, "The Crunch Era");
+  assert.equal(data[0].author.logo.url, SITE_URL + "/brand-logo-olive.jpeg");
+  assert.equal(data[0].author["@id"], data[0].publisher["@id"]);
   assert.equal(data[1]["@type"], "BreadcrumbList");
   const app = express(); registerSeoRoutes(app);
   app.get("*", async (req,res) => { await sendSeoHtml(req,res,template); });
