@@ -2,7 +2,7 @@ import { productDetails } from "./catalog";
 
 export const edamameArticle = {
   slug: "roasted-edamame-beans-guide",
-  title: "Roasted edamame beans: ingredients, nutrition & ways to enjoy",
+  title: "Roasted edamame beans: nutrition & uses",
   description: "Get to know roasted and salted edamame beans: ingredients, protein and fibre per 100 g, soy allergen information and easy snack ideas.",
   category: "Snack guides",
   author: "The Crunch Era",
@@ -45,7 +45,7 @@ export const edamameArticle = {
 };
 export const chipsArticle: typeof edamameArticle = {
   slug: "ragi-oats-moong-dal-mix-veg-chips-guide",
-  title: "Ragi, oats, moong dal or mix veg chips: find your next crunch",
+  title: "Ragi, oats, moong dal & mix veg chips",
   description: "Explore The Crunch Era’s four 60 g chips: flavours, ingredients, nutrition per 100 g, allergen advice and simple snack ideas to help you choose.",
   category: "Snack guides", author: "The Crunch Era", published: "2026-10-20",
   image: "/product-images/mix_veg_chips.webp",
