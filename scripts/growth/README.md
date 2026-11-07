@@ -53,7 +53,7 @@ No report means end-to-end login/cart/payment testing passed. This workflow neve
 
 `touch PAUSE` stops every runner entry point and request, including a run already in progress at its next action boundary. Remove PAUSE to resume. In CI, commit PAUSE to the branch you run against; a local-only file cannot pause another machine. An already in-flight request may finish. Manual CI can also be cancelled in GitHub.
 
-The workflow is **manual only**, with offline mode selected by default. Scheduling belongs to a later approved phase. It has `contents: read` and cannot push/merge/publish. Results are CI artifacts, never automatic commits. Live raw analytics artifact retention is seven days; access follows repository/Actions access. Do not enable it in a public repository if that audience should not see analytics. Local raw exports are git-ignored. Logs contain labels/statuses, not auth headers or bodies.
+The workflow is **manual only**, with offline mode selected by default. GitHub exposes `workflow_dispatch` only after the workflow exists on the repository default branch (currently `main`); this PR targets the deployment branch and does not change `main`. Until the founder separately approves default-branch adoption, run the commands locally. Do not merge to main merely to enable CI. Scheduling belongs to a later approved phase. It has `contents: read` and cannot push/merge/publish. Results are CI artifacts, never automatic commits. Live raw analytics artifact retention is seven days; access follows repository/Actions access. Do not enable it in a public repository if that audience should not see analytics. Local raw exports are git-ignored. Logs contain labels/statuses, not auth headers or bodies.
 
 ## Before Phase 2
 

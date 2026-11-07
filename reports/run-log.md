@@ -75,3 +75,10 @@
 | 2026-11-07T19:25:13.451180+00:00 | 20261107T192513449867Z | live | GitHub phase 1 branch publication | prepare draft PR only; no merge or site publication authorized |
 | 2026-11-07T19:26:38.211335+00:00 | 20261107T192638210331Z | live | GitHub create_tree | auto-review rejected private analytics upload; no private data uploaded |
 | 2026-11-07T19:26:38.211383+00:00 | 20261107T192638210331Z | live | publication scope reduction | exclude private snapshot; public crawl findings and scaffold only |
+| 2026-11-07T19:28:14.342756+00:00 | 20261107T192814342658Z | live | GitHub create_branch | codex/growth-phase-1 created from deployed branch |
+| 2026-11-07T19:28:14.342810+00:00 | 20261107T192814342658Z | live | GitHub create_tree | safe scaffold/public crawl only uploaded; private snapshots excluded |
+| 2026-11-07T19:28:14.342845+00:00 | 20261107T192814342658Z | live | GitHub create_commit | 3169341 created |
+| 2026-11-07T19:28:14.342875+00:00 | 20261107T192814342658Z | live | GitHub update_ref | audit branch updated with expected-head check; main unchanged |
+| 2026-11-07T19:28:14.342903+00:00 | 20261107T192814342658Z | live | GitHub create_pull_request | draft PR 3 opened; not merged |
+| 2026-11-07T19:28:14.342968+00:00 | 20261107T192814342658Z | live | remote verification | uploaded file contents match staged code; 25 files; no storefront changes |
+| 2026-11-07T19:28:14.343001+00:00 | 20261107T192814342658Z | live | CI activation check | manual workflow requires default-branch adoption; documented, not enabled |
