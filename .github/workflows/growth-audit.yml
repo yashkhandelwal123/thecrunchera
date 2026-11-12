@@ -1,0 +1,60 @@
+name: Growth audit (read only)
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Offline synthetic fixtures (no API access)
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: growth-audit-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Check PAUSE
+        id: pause
+        shell: bash
+        run: |
+          if [ -f PAUSE ]; then
+            echo "paused=true" >> "$GITHUB_OUTPUT"
+            echo "PAUSE present; stopping without audit actions."
+          else
+            echo "paused=false" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-python@v5
+        if: steps.pause.outputs.paused == 'false'
+        with:
+          python-version: '3.12'
+      - name: Offline tests
+        if: steps.pause.outputs.paused == 'false'
+        run: python -m unittest discover -s scripts/tests -v
+      - name: Install reporting dependencies
+        if: steps.pause.outputs.paused == 'false' && !inputs.dry_run
+        run: python -m pip install -r scripts/growth/requirements.txt
+      - name: Offline fixture audit
+        if: steps.pause.outputs.paused == 'false' && inputs.dry_run
+        run: python -m scripts.growth.audit --dry-run
+      - name: Read-only live audit
+        if: steps.pause.outputs.paused == 'false' && !inputs.dry_run
+        env:
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GA4_PROPERTY_ID: ${{ vars.GA4_PROPERTY_ID }}
+          PAGESPEED_API_KEY: ${{ secrets.PAGESPEED_API_KEY }}
+        run: python -m scripts.growth.audit --require-complete
+      - name: Upload report and private raw exports
+        if: always() && steps.pause.outputs.paused == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: growth-audit-${{ github.run_id }}
+          path: |
+            reports/
+            data/generated/
+          retention-days: 7

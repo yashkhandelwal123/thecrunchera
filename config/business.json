@@ -1,0 +1,18 @@
+{
+  "source": "Founder instructions in ChatGPT, 2026-11-08 Asia/Kolkata",
+  "currency": "INR",
+  "market": "India",
+  "language": "en-IN",
+  "products": [
+    {"name":"Moong Dal Chips","path":"/products/moong-dal-chips","pack_g":60,"price":70},
+    {"name":"Oats Chips","path":"/products/oats-chips","pack_g":60,"price":70,"oats_percent":76},
+    {"name":"Ragi Chips","path":"/products/ragi-chips","pack_g":60,"price":70,"flavour":"Peri Peri"},
+    {"name":"Mix Veg Chips","path":"/products/mix-veg-chips","pack_g":60,"price":70,"vegetables":["beetroot","palak","carrot"]},
+    {"name":"Roasted Edamame Beans","path":"/edamame-beans","pack_g":150,"price":225,"allergens":["soy"]}
+  ],
+  "selling_points_pending_sku_label_validation":["no maida","no palm oil","cooked in rice bran oil","Himalayan pink salt","Indian masala flavours"],
+  "shipping":{"free_from_inr":359,"otherwise_inr":70,"threshold_basis":"[NEED FROM FOUNDER] before or after discounts"},
+  "coupon":{"code":"CRUNCH10","discount_percent":10,"subtotal_strictly_above_inr":450},
+  "channels":{"amazon":true,"instagram":true,"youtube_channel_created":false},
+  "unresolved":["Repo also lists 400 g, 800 g and 1 kg edamame variants. Founder brief specifies 150 g only; do not remove existing sizes without clarification.","Confirm label evidence for each selling point per SKU before publishing claims."]
+}

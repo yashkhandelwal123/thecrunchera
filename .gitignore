@@ -27,3 +27,21 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+
+# Growth workflow secrets and local analytics exports
+.venv-growth/
+__pycache__/
+*.pyc
+config/*.env
+data/generated/
+reports/dry-run/
+*service-account*.json
+*credentials*.json
+videos/assets/*
+!videos/assets/README.md
+
+.env.*
+!.env.example
+
+# Private connector-derived audit kept local unless sharing is approved
+reports/audit-private.md
