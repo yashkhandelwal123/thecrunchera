@@ -84,7 +84,8 @@ export default function GoogleSignInButton() {
     }
   }, [signInWithGoogle, toast]);
 
-  if (!CLIENT_ID) return null;
+  if (!CLIENT_ID) return <p className="text-sm text-muted-foreground">Sign-in is temporarily unavailable. Please <a href="/contact" className="underline">contact us</a> for help.</p>;
 
   return <div ref={buttonRef} data-testid="button-google-signin" />;
 }
+

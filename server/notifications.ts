@@ -1,7 +1,19 @@
+import type { CustomerEmailCopy } from "./customerEmailPdf";
 import type { Order, OrderItem } from "@shared/schema";
+import { shipmentTrackingUrl, shipmentNotificationKey } from "../shared/shipping";
+
+// Notification recipients only; never used for admin-panel authorization.
+export function adminNotificationRecipients(): string[] {
+  const additional = process.env.ADMIN_NOTIFICATION_EMAILS ?? "khandelwalshubham5775@gmail.com";
+  return Array.from(new Set([process.env.ADMIN_EMAIL || "", additional]
+    .flatMap(value => value.split(","))
+    .map(value => value.trim().toLowerCase())
+    .filter(Boolean)));
+}
+
 
 /**
- * Fires both notification channels for a newly-paid order. Each channel
+ * Fires the admin, customer and Telegram notification channels for a newly-paid order. Each channel
  * fails independently and silently (logged, not thrown) — a broken email
  * or Telegram setup should never break the actual checkout flow for the
  * customer. Call this AFTER the order is already marked paid in the DB.
@@ -9,8 +21,21 @@ import type { Order, OrderItem } from "@shared/schema";
 export async function notifyNewOrder(order: Order, items: OrderItem[]) {
   await Promise.allSettled([
     sendOrderEmail(order, items),
+    notifyCustomer(order, items),
     sendTelegramMessage(order, items),
   ]);
+}
+
+async function notifyCustomer(order: Order, items: OrderItem[]) {
+  try {
+    const { storage } = await import("./storage");
+    const customer = await storage.getUserById(order.userId);
+    if (!customer?.email) throw new Error("Order customer has no email address");
+    const { sendCustomerOrderEmail } = await import("./customerOrderEmail");
+    await sendCustomerOrderEmail(order, items, customer.email);
+  } catch (error) {
+    console.error(`[notifications] Customer confirmation failed for order ${order.id}:`, error);
+  }
 }
 
 function formatOrderSummary(order: Order, items: OrderItem[]): string {
@@ -20,7 +45,7 @@ function formatOrderSummary(order: Order, items: OrderItem[]): string {
 
   return (
     `New paid order #${order.id.slice(0, 8)}\n` +
-    `Total: ₹${order.total}\n\n` +
+    `Subtotal: ₹${order.subtotal}\nShipping: ₹${order.shippingCharge}\nDiscount: ₹${order.discountAmount}${order.promoCode ? ` (${order.promoCode})` : ""}\nTotal: ₹${order.total}\n\n` +
     `Items:\n${itemLines}\n\n` +
     `Ship to:\n` +
     `${order.shippingName} · ${order.shippingPhone}\n` +
@@ -32,11 +57,11 @@ function formatOrderSummary(order: Order, items: OrderItem[]): string {
 
 async function sendOrderEmail(order: Order, items: OrderItem[]) {
   const apiKey = process.env.RESEND_API_KEY;
-  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminEmails = adminNotificationRecipients();
 
-  if (!apiKey || !adminEmail) {
+  if (!apiKey || !adminEmails.length) {
     console.warn(
-      "[notifications] RESEND_API_KEY or ADMIN_EMAIL not set — skipping order email.",
+      "[notifications] RESEND_API_KEY or admin notification recipients not set — skipping order email.",
     );
     return;
   }
@@ -54,15 +79,15 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
       )
       .join("");
 
-    await resend.emails.send({
-      // Resend's shared test domain — works immediately with no DNS setup.
-      // Swap to a verified domain address once you set one up in Resend.
+    const { error } = await resend.emails.send({
+      // This sender domain must be verified in Resend.
       from: "The Crunch Era <orders@thecrunchera.com>",
-      to: adminEmail,
+      to: adminEmails,
       subject: `New order — ₹${order.total} (#${order.id.slice(0, 8)})`,
       html: `
         <h2>New paid order</h2>
         <p><strong>Order:</strong> #${order.id.slice(0, 8)}</p>
+        <p>Subtotal: ₹${order.subtotal} · Shipping: ₹${order.shippingCharge} · Discount: ₹${order.discountAmount}</p>
         <p><strong>Total:</strong> ₹${order.total}</p>
         <table style="border-collapse:collapse;">${itemRows}</table>
         <h3>Ship to</h3>
@@ -73,7 +98,8 @@ async function sendOrderEmail(order: Order, items: OrderItem[]) {
           ${order.shippingCity}, ${order.shippingState} - ${order.shippingPincode}
         </p>
       `,
-    });
+    }, { idempotencyKey: `admin-order-paid/${order.id}` });
+    if (error) throw new Error(`${error.name}: ${error.message}`);
   } catch (error) {
     console.error("[notifications] Failed to send order email:", error);
   }
@@ -106,5 +132,75 @@ async function sendTelegramMessage(order: Order, items: OrderItem[]) {
     }
   } catch (error) {
     console.error("[notifications] Failed to send Telegram message:", error);
+  }
+}
+
+
+/** Email failure must not undo a successfully purchased courier assignment. */
+export async function notifyCourierAssigned(order: Order) {
+  const { customerShipmentEmail } = await import("./customerShipmentEmail");
+  const email = customerShipmentEmail(order, process.env.SUPPORT_EMAIL?.trim());
+  await Promise.allSettled([
+    notifyCustomerCourierAssigned(order, email),
+    notifyAdminCourierAssigned(order, email),
+  ]);
+}
+
+async function notifyCustomerCourierAssigned(order: Order, email: CustomerEmailCopy) {
+  try {
+    const { storage } = await import("./storage");
+    const customer = await storage.getUserById(order.userId);
+    if (!customer?.email) throw new Error("Order customer has no email address");
+    const { sendCustomerShipmentEmail } = await import("./customerShipmentEmail");
+    await sendCustomerShipmentEmail(order, customer.email, email);
+  } catch (error) {
+    console.error(`[notifications] Shipping email failed for order ${order.id}:`, error);
+  }
+}
+
+async function notifyAdminCourierAssigned(order: Order, email: CustomerEmailCopy) {
+  try {
+    if (!process.env.RESEND_API_KEY) throw new Error("RESEND_API_KEY is missing");
+    const recipients = adminNotificationRecipients();
+    if (!recipients.length) throw new Error("No admin notification recipients configured");
+    let attachments: { filename: string; content: Buffer }[] = [];
+    let copyNote = "Attached: PDF copy of the customer tracking email. This copy is not proof of inbox delivery.";
+    try {
+      const { customerEmailPdf } = await import("./customerEmailPdf");
+      attachments = [{ filename: "customer-tracking-email.pdf", content: await customerEmailPdf(email) }];
+    } catch (error) {
+      // PDF problems must not suppress the admin alert or affect the customer send.
+      console.error("[notifications] Customer email PDF could not be generated:", error);
+      copyNote = "PDF generation failed. Customer email content is included below instead. This is not proof of inbox delivery.\n\n" + email.subject + "\n\n" + email.text;
+    }
+    const trackingUrl = shipmentTrackingUrl(order);
+    const text = [
+      "Courier assigned — The Crunch Era",
+      copyNote,
+      `Order: ${order.id}`,
+      `Customer: ${order.shippingName}`,
+      `Phone: ${order.shippingPhone}`,
+      `Courier: ${order.courierName}`,
+      `Tracking number (AWB): ${order.awbCode}`,
+      `Track parcel: ${trackingUrl}`,
+      `Status: ${order.shippingStatus || "Courier assigned — pickup not yet confirmed"}`,
+      "Delivery address:",
+      order.shippingAddressLine1,
+      order.shippingAddressLine2,
+      `${order.shippingCity}, ${order.shippingState} – ${order.shippingPincode}`,
+    ].filter(Boolean).join("\n\n");
+    const escaped = text.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    const { Resend } = await import("resend");
+    const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+      from: process.env.ORDER_EMAIL_FROM || "The Crunch Era <orders@thecrunchera.com>",
+      to: recipients,
+      subject: "Courier assigned — The Crunch Era",
+      attachments,
+      text,
+      html: `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.6;white-space:pre-wrap">${escaped}</div>`,
+    }, { idempotencyKey: `admin-courier-assigned/${order.id}/${shipmentNotificationKey(order)}` });
+    if (error) throw new Error(`${error.name}: ${error.message}`);
+  } catch (error) {
+    console.error(`[notifications] Admin shipping email failed for order ${order.id}:`, error);
   }
 }

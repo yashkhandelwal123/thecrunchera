@@ -37,7 +37,7 @@ function loadRazorpayScript(): Promise<void> {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.onload = () => resolve();
-    script.onerror = () => reject(new Error("Failed to load Razorpay checkout script"));
+    script.onerror = () => { script.remove(); scriptLoadingPromise = null; reject(new Error("Could not load payment. Check your connection and try again.")); };
     document.body.appendChild(script);
   });
 
@@ -80,9 +80,10 @@ export async function openRazorpayCheckout(params: OpenRazorpayCheckoutParams) {
       email: params.customerEmail,
       contact: params.customerPhone,
     },
-    theme: { color: "#f97316" },
+    theme: { color: "#543071" },
     modal: { ondismiss: params.onDismiss },
   });
 
   rzp.open();
 }
+
