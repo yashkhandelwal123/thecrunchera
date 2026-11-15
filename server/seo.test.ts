@@ -64,6 +64,7 @@ test("HTTP sitemap, initial product HTML, redirects, 404s and noindex", async ()
     for (const path of ["/", "/products", productPath(product)]) {
       const response = await fetch(base + path);
       assert.equal(response.status, 200);
+      assert.equal(response.headers.get("cache-control"), "no-cache, no-transform");
       const html = await response.text();
       assert.ok(html.includes(product.name));
       assert.ok(html.includes('content="index, follow"'));
