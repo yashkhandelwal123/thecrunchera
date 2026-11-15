@@ -133,3 +133,23 @@ test("chips guide publishes all four varieties without edamame nutrition leakage
   assert.ok(data[0].headline.includes("moong dal"));
   assert.ok(renderSeoHtml(template, "/blog").includes(path));
 });
+
+
+test("information pages expose real headings, content and policy links before JavaScript", () => {
+  for (const path of ["/about", "/contact", "/shipping", "/privacy-policy", "/terms-of-service"]) {
+    const html = renderSeoHtml(template, path);
+    assert.equal((html.match(/<h1[ >]/g) || []).length, 1, path);
+    for (const link of ["/shipping", "/privacy-policy", "/terms-of-service"])
+      assert.ok(html.includes(`href="${link}"`), `${path} links to ${link}`);
+    assert.ok(html.includes('href="https://www.instagram.com/the_crunchera/"'));
+    assert.ok(html.includes(`rel="canonical" href="${SITE_URL + path}"`));
+  }
+  const contact = renderSeoHtml(template, "/contact");
+  assert.ok(contact.includes('name="message"'));
+  assert.ok(contact.includes('mailto:'));
+  assert.ok(renderSeoHtml(template, "/about").includes("a snack brand with a simple focus"));
+  const home = renderSeoHtml(template, "/");
+  assert.ok(home.includes('href="/shipping"'));
+  assert.ok(!renderSeoHtml(template, "/checkout").includes('store-footer'));
+  assert.ok(renderSeoHtml(template, "/blog").includes("Snack Guides, Ingredients &amp; Ideas"));
+});

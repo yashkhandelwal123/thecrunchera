@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 import { apiRequest } from "@/lib/queryClient";
 export default function ContactPage() {

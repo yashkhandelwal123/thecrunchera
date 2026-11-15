@@ -1,3 +1,4 @@
+import React from "react";
 import { Link } from "wouter";
 import { ArrowUpRight } from "lucide-react";
 import { useState } from "react";

@@ -1,3 +1,10 @@
+import { Router } from "wouter";
+import Footer from "../client/src/components/Footer";
+import AboutPage from "../client/src/pages/AboutPage";
+import ContactPage from "../client/src/pages/ContactPage";
+import ShippingPage from "../client/src/pages/ShippingPage";
+import PrivacyPolicyPage from "../client/src/pages/PrivacyPolicyPage";
+import TermsOfServicePage from "../client/src/pages/TermsOfServicePage";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import BlogContent from "../shared/BlogContent";
@@ -59,8 +66,18 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
   // React's existing createRoot replaces this crawlable initial content on mount.
   // It uses the same catalog data as the browser, with no separate bot response.
   const faqHtml = (faqs: { question: string; answer: string }[]) => `<section><h2>Frequently asked questions</h2>${faqs.map(f => `<h3>${escapeHtml(f.question)}</h3><p>${escapeHtml(f.answer)}</p>`).join("")}</section>`;
+  // Reuse the actual page components so browser and initial HTML stay aligned.
+  const informationPages: Record<string, typeof AboutPage> = {
+    "/about": AboutPage, "/contact": ContactPage, "/shipping": ShippingPage,
+    "/privacy-policy": PrivacyPolicyPage, "/terms-of-service": TermsOfServicePage,
+  };
+  const renderPage = (component: typeof AboutPage) => renderToStaticMarkup(
+    createElement(Router, { ssrPath: path, children: createElement(component) })
+  );
   let content = "";
-  if (path === "/blog" || articleForPath(path)) {
+  if (informationPages[path]) {
+    content = renderPage(informationPages[path]);
+  } else if (path === "/blog" || articleForPath(path)) {
     content = renderToStaticMarkup(createElement(BlogContent, { article: articleForPath(path) }));
   } else if (product) {
     const detail = productDetails(product);
@@ -71,6 +88,7 @@ export function renderSeoHtml(template: string, path: string, product?: Product,
   } else if (path === "/" || path === "/products") {
     content = `<main><h1>${path === "/" ? "Chips & Roasted Edamame Beans" : "Shop Snacks Online"}</h1><p>${escapeHtml(metadata.description)}</p><ul>${products.filter((item, i, all) => all.findIndex(p => productPath(p) === productPath(item)) === i).map(item => `<li><a href="${escapeHtml(productPath(item))}">${escapeHtml(item.name)}</a><p>${escapeHtml(item.description)}</p><p>₹${escapeHtml(item.price)}</p></li>`).join("")}</ul>${path === "/" ? faqHtml(shoppingFaqs) : ""}<a href="/blog">Read our snack guides</a></main>`;
   }
+  if (content) content += renderPage(Footer);
   return html.replace('<div id="root"></div>', `<div id="root">${content}</div>`);
 }
 

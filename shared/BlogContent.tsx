@@ -4,7 +4,7 @@ import { articles, blogPath, readingMinutes, type edamameArticle } from "./blog"
 
 export default function BlogContent({ article }: { article?: typeof edamameArticle }) {
   if (!article) return <main id="main-content" className="shell section blog-index">
-    <header className="blog-intro"><span className="eyebrow">THE CRUNCH ERA JOURNAL</span><h1>A little food for thought.</h1><p>Ingredient guides, snack ideas and more ways to enjoy your next crunch.</p></header>
+    <header className="blog-intro"><span className="eyebrow">THE CRUNCH ERA JOURNAL</span><h1>Snack Guides, Ingredients &amp; Ideas</h1><p>Ingredient guides, snack ideas and more ways to enjoy your next crunch.</p></header>
     <div className="blog-cards">{articles.map(a => <article className="blog-card" key={a.slug}><a href={blogPath(a)} aria-label={`Read ${a.title}`}><img src={a.image} alt={a.imageAlt} width="568" height="568" /></a><div><span className="eyebrow">{a.category} · {readingMinutes(a)} min read</span><h2><a href={blogPath(a)}>{a.title}</a></h2><p>{a.description}</p><a className="text-link" href={blogPath(a)}>Read the guide <span aria-hidden="true">↗</span></a></div></article>)}</div>
   </main>;
   const a = article;

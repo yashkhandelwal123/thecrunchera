@@ -1,3 +1,4 @@
+import React from "react";
 export default function TermsOfServicePage() {
   return (
     <div className="min-h-screen pt-24 pb-16 px-6">

@@ -1,3 +1,4 @@
+import React from "react";
 import { useState } from "react";
 export default function PrivacyPolicyPage() {
   const [analyticsDisabled, setAnalyticsDisabled] = useState(() => { try { return localStorage.getItem("crunch-analytics-disabled") === "1"; } catch { return false; } });
