@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import BlogPage from "@/pages/BlogPage";
+import { useEffect, lazy, Suspense } from "react";
 import { Switch, Route, useLocation } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -8,15 +9,20 @@ import { CartProvider } from "@/contexts/CartContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import EdamamePage from "@/pages/EdamamePage";
 import HomePage from "@/pages/HomePage";
 import ProductsPage from "@/pages/ProductsPage";
+import ShippingPage from "@/pages/ShippingPage";
+import ProductDetailPage from "@/pages/ProductDetailPage";
+import Seo from "@/components/Seo";
 import AboutPage from "@/pages/AboutPage";
 import ContactPage from "@/pages/ContactPage";
 import CartPage from "@/pages/CartPage";
-import CheckoutPage from "@/pages/CheckoutPage";
-import OrdersPage from "@/pages/OrdersPage";
-import OrderDetailPage from "@/pages/OrderDetailPage";
-import AdminOrdersPage from "@/pages/AdminOrdersPage";
+const CheckoutPage = lazy(() => import("@/pages/CheckoutPage"));
+const OrdersPage = lazy(() => import("@/pages/OrdersPage"));
+const OrderDetailPage = lazy(() => import("@/pages/OrderDetailPage"));
+const AdminGrowthPage = lazy(() => import("@/pages/AdminGrowthPage"));
+const AdminOrdersPage = lazy(() => import("@/pages/AdminOrdersPage"));
 import PrivacyPolicyPage from "@/pages/PrivacyPolicyPage";
 import TermsOfServicePage from "@/pages/TermsOfServicePage";
 import NotFound from "@/pages/not-found";
@@ -39,10 +45,17 @@ function Router() {
 
   return (
     <>
+      <Seo />
       {!hideChrome && <Navbar />}
-      <Switch>
+      <Suspense fallback={<main className="shell section" aria-busy="true">Loading…</main>}><Switch>
         <Route path="/" component={HomePage} />
+        <Route path="/blog" component={BlogPage} />
+        <Route path="/blog/:slug" component={BlogPage} />
         <Route path="/products" component={ProductsPage} />
+        <Route path="/edamame-beans" component={EdamamePage} />
+        <Route path="/products/:slug/:id" component={ProductDetailPage} />
+        <Route path="/products/:slug" component={ProductDetailPage} />
+        <Route path="/shipping" component={ShippingPage} />
         <Route path="/about" component={AboutPage} />
         <Route path="/manufacturing-details" component={ManufacturingDetails} />
         <Route path="/contact" component={ContactPage} />
@@ -50,12 +63,13 @@ function Router() {
         <Route path="/checkout" component={CheckoutPage} />
         <Route path="/orders" component={OrdersPage} />
         <Route path="/orders/:id" component={OrderDetailPage} />
+        <Route path="/admin/growth" component={AdminGrowthPage} />
         <Route path="/admin/orders" component={AdminOrdersPage} />
         <Route path="/privacy-policy" component={PrivacyPolicyPage} />
         <Route path="/terms-of-service" component={TermsOfServicePage} />
         {/* <Route path="/Ridhav" component={JalwaInvitation} /> */}
         <Route component={NotFound} />
-      </Switch>
+      </Switch></Suspense>
       {!hideChrome && <Footer />}
     </>
   );

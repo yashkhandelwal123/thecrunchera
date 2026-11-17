@@ -1,5 +1,4 @@
 /* Replace your current @import with this */
-@import url('https://fonts.googleapis.com/css2?family=Quicksand:wght@600;700&family=Inter:wght@400;500;600&family=Fredoka:wght@600&family=Noto+Sans:wght@400;600&display=swap');
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

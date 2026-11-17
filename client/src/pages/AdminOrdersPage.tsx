@@ -1,9 +1,10 @@
+import { Link } from "wouter";
+import ShippingPlanner from "@/components/ShippingPlanner";
 import { useEffect, useState } from "react";
+import { fetchApi, readApiJson } from "@/lib/apiResponse";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -14,7 +15,7 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import GoogleSignInButton from "@/components/GoogleSignInButton";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw, PackageCheck } from "lucide-react";
+import { Loader2, ShieldAlert, Truck, ExternalLink, RefreshCw } from "lucide-react";
 
 interface AdminOrder {
   id: string;
@@ -35,6 +36,9 @@ interface AdminOrder {
   trackingUrl: string | null;
   shippingStatus: string | null;
   shiprocketShipmentId: string | null;
+  shippingProvider: string;
+  shipmentBookingState: string | null;
+  shippingEnvironment: string | null;
 }
 
 const STATUS_OPTIONS = ["pending", "paid", "shipped", "delivered", "cancelled"];
@@ -56,14 +60,14 @@ export default function AdminOrdersPage() {
 
   const loadOrders = () => {
     setIsLoading(true);
-    fetch("/api/admin/orders", { credentials: "include" })
+    fetchApi("/api/admin/orders", { credentials: "include" })
       .then((res) => {
         if (res.status === 403) {
           setForbidden(true);
           return [];
         }
         if (!res.ok) throw new Error("Failed to load");
-        return res.json();
+        return readApiJson(res);
       })
       .then((data) => setOrders(data))
       .catch(() =>
@@ -88,7 +92,7 @@ export default function AdminOrdersPage() {
       cur.map((o) => (o.id === orderId ? { ...o, status } : o)),
     );
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/status`, {
+      const res = await fetchApi(`/api/admin/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -106,85 +110,17 @@ export default function AdminOrdersPage() {
   };
 
   const [shippingOrderId, setShippingOrderId] = useState<string | null>(null);
-  const [shipForm, setShipForm] = useState({
-    weightKg: "0.1",
-    lengthCm: "15",
-    breadthCm: "10",
-    heightCm: "5",
-  });
-  const [isShipping, setIsShipping] = useState(false);
   const [refreshingId, setRefreshingId] = useState<string | null>(null);
-
-  const openShipForm = (orderId: string) => {
-    setShippingOrderId(orderId);
-    setShipForm({ weightKg: "0.1", lengthCm: "15", breadthCm: "10", heightCm: "5" });
-  };
-
-  const submitShipment = async (orderId: string) => {
-    setIsShipping(true);
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/create-shipment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(shipForm),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to create shipment");
-
-      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
-      setShippingOrderId(null);
-      toast({
-        title: "Shipment created",
-        description: "No courier assigned yet, no charge made. Assign a courier when you're ready to actually ship.",
-      });
-    } catch (err) {
-      toast({
-        title: "Couldn't create shipment",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsShipping(false);
-    }
-  };
-
-  const [assigningId, setAssigningId] = useState<string | null>(null);
-
-  const assignCourier = async (orderId: string) => {
-    setAssigningId(orderId);
-    try {
-      const res = await fetch(`/api/admin/orders/${orderId}/assign-courier`, {
-        method: "POST",
-        credentials: "include",
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to assign courier");
-
-      setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
-      toast({
-        title: "Courier assigned",
-        description: `${data.courierName} — AWB ${data.awbCode}`,
-      });
-    } catch (err) {
-      toast({
-        title: "Couldn't assign courier",
-        description: err instanceof Error ? err.message : "Something went wrong.",
-        variant: "destructive",
-      });
-    } finally {
-      setAssigningId(null);
-    }
-  };
+  const openShipForm = (id: string) => setShippingOrderId(id);
 
   const refreshTracking = async (orderId: string) => {
     setRefreshingId(orderId);
     try {
-      const res = await fetch(`/api/admin/orders/${orderId}/refresh-tracking`, {
+      const res = await fetchApi(`/api/admin/orders/${orderId}/refresh-tracking`, {
         method: "POST",
         credentials: "include",
       });
-      const data = await res.json();
+      const data = await readApiJson(res);
       if (!res.ok) throw new Error(data.error || "Failed to refresh");
       setOrders((cur) => cur.map((o) => (o.id === orderId ? { ...o, ...data } : o)));
     } catch (err) {
@@ -229,7 +165,7 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="min-h-screen pt-24 pb-16 px-6">
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-5xl mx-auto"><Link href="/admin/growth" className="text-link">Growth lab ↗</Link>
         <h1 className="font-heading font-bold text-3xl mb-8">
           All Orders ({orders.length})
         </h1>
@@ -294,7 +230,7 @@ export default function AdminOrdersPage() {
                       </SelectContent>
                     </Select>
 
-                    {order.status === "paid" && !order.shiprocketShipmentId && (
+                    {order.status === "paid" && !order.awbCode && (!order.shipmentBookingState || order.shipmentBookingState === "created") && (
                       <Button
                         size="sm"
                         variant="outline"
@@ -302,31 +238,13 @@ export default function AdminOrdersPage() {
                         data-testid={`button-ship-${order.id}`}
                       >
                         <Truck className="w-4 h-4 mr-1" />
-                        Create Shipment (free)
+                        Prepare shipment / compare prices
                       </Button>
                     )}
 
-                    {order.shiprocketShipmentId && !order.awbCode && (
-                      <div className="text-xs text-right space-y-1.5">
-                        <div className="text-muted-foreground">
-                          Shipment created, no courier yet
-                        </div>
-                        <Button
-                          size="sm"
-                          onClick={() => assignCourier(order.id)}
-                          disabled={assigningId === order.id}
-                          data-testid={`button-assign-courier-${order.id}`}
-                        >
-                          {assigningId === order.id ? (
-                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                          ) : (
-                            <PackageCheck className="w-4 h-4 mr-1" />
-                          )}
-                          Assign Courier (billable)
-                        </Button>
-                      </div>
+                    {order.shipmentBookingState && ["booking", "needs_review", "assigning", "releasing"].includes(order.shipmentBookingState) && (
+                      <p className="text-sm text-amber-800 max-w-sm">Booking in progress or awaiting review. Check {order.shippingProvider === "delhivery" ? "Delhivery One" : "Shiprocket"} before retrying; contact support to reconcile the booking.</p>
                     )}
-
                     {order.awbCode && (
                       <div className="text-xs text-right space-y-1">
                         <div className="font-medium">{order.courierName}</div>
@@ -362,83 +280,7 @@ export default function AdminOrdersPage() {
                 </div>
 
                 {shippingOrderId === order.id && (
-                  <div className="mt-4 pt-4 border-t grid grid-cols-2 md:grid-cols-5 gap-3 items-end">
-                    <div>
-                      <Label htmlFor={`weight-${order.id}`} className="text-xs">
-                        Weight (kg)
-                      </Label>
-                      <Input
-                        id={`weight-${order.id}`}
-                        type="number"
-                        step="0.01"
-                        value={shipForm.weightKg}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, weightKg: e.target.value }))
-                        }
-                        data-testid={`input-weight-${order.id}`}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`length-${order.id}`} className="text-xs">
-                        Length (cm)
-                      </Label>
-                      <Input
-                        id={`length-${order.id}`}
-                        type="number"
-                        value={shipForm.lengthCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, lengthCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`breadth-${order.id}`} className="text-xs">
-                        Breadth (cm)
-                      </Label>
-                      <Input
-                        id={`breadth-${order.id}`}
-                        type="number"
-                        value={shipForm.breadthCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, breadthCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor={`height-${order.id}`} className="text-xs">
-                        Height (cm)
-                      </Label>
-                      <Input
-                        id={`height-${order.id}`}
-                        type="number"
-                        value={shipForm.heightCm}
-                        onChange={(e) =>
-                          setShipForm((f) => ({ ...f, heightCm: e.target.value }))
-                        }
-                      />
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => submitShipment(order.id)}
-                        disabled={isShipping}
-                        data-testid={`button-confirm-ship-${order.id}`}
-                      >
-                        {isShipping ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          "Confirm"
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => setShippingOrderId(null)}
-                      >
-                        Cancel
-                      </Button>
-                    </div>
-                  </div>
+                  <ShippingPlanner order={order} onChanged={() => { setShippingOrderId(null); loadOrders(); }} />
                 )}
               </Card>
             ))}
@@ -448,3 +290,4 @@ export default function AdminOrdersPage() {
     </div>
   );
 }
+
