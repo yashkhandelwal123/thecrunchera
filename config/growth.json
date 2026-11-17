@@ -1,0 +1,53 @@
+{
+  "site_url": "https://thecrunchera.com/",
+  "gsc_property": "https://thecrunchera.com/",
+  "ga4_hostname": "thecrunchera.com",
+  "seed_paths": [
+    "/",
+    "/products",
+    "/edamame-beans",
+    "/products/ragi-chips",
+    "/products/oats-chips",
+    "/products/moong-dal-chips",
+    "/products/mix-veg-chips",
+    "/blog",
+    "/blog/roasted-edamame-beans-guide",
+    "/blog/ragi-oats-moong-dal-mix-veg-chips-guide"
+  ],
+  "private_paths": [
+    "/cart",
+    "/checkout",
+    "/orders",
+    "/admin"
+  ],
+  "max_pages": 60,
+  "max_sitemaps": 10,
+  "max_api_rows": 50000,
+  "request_delay_seconds": 0.25,
+  "timeout_seconds": 30,
+  "pagespeed_paths": [
+    "/",
+    "/edamame-beans"
+  ],
+  "pagespeed_strategies": [
+    "mobile",
+    "desktop"
+  ],
+  "publishing_enabled": false,
+  "allowed_page_paths": [
+    "/",
+    "/products",
+    "/edamame-beans",
+    "/blog",
+    "/shipping",
+    "/about",
+    "/contact",
+    "/privacy-policy",
+    "/terms-of-service"
+  ],
+  "allowed_path_prefixes": [
+    "/products/",
+    "/blog/",
+    "/product-images/"
+  ]
+}
